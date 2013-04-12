@@ -2,10 +2,11 @@
 
 import functools
 import logging
-import pprint
 import re
 
 from urllib.parse import urlencode
+
+from pycl.core import Error
 
 from vk_rss import api
 
@@ -336,15 +337,10 @@ def _post_item(users, user, item):
 
 def get_newsfeed():
     response = api.call("newsfeed.get")
-#    pprint.pprint(response["groups"][0])
-    pprint.pprint(response["items"][0])
-#    pprint.pprint(response["profiles"][0])
 
     users = _get_users(response["profiles"], response["groups"])
     api_items = response["items"]
     del response
-
-#    pprint.pprint(users)
 
     items = []
     for api_item in api_items:
@@ -364,9 +360,7 @@ def get_newsfeed():
             elif api_item["type"] == "note":
                 item = _note_item(users, user, api_item)
             else:
-                LOG.error(api_item)
-                # TODO
-                continue
+                raise Error("Unknown news item type.")
         except Exception:
             LOG.exception("Failed to process news feed item %s.", api_item)
 
