@@ -13,6 +13,9 @@ from vk_rss import config
 
 LOG = logging.getLogger("vk-rss.api")
 
+_VK_API_URL = "https://api.vk.com/"
+"""VK API URL."""
+
 
 def call(method, **kwargs):
     """Calls the specified VK API method."""
@@ -20,7 +23,7 @@ def call(method, **kwargs):
     kwargs.setdefault("language", "0")
     kwargs.setdefault("access_token", config.ACCESS_TOKEN)
 
-    url = "https://api.vk.com/method/{}?".format(method) + urlencode(kwargs)
+    url = _VK_API_URL + "method/{}?".format(method) + urlencode(kwargs)
     debug_path = os.path.join("debug", method + ":" + urlencode(kwargs))
 
     LOG.debug("Sending VK API request: %s...", url)
