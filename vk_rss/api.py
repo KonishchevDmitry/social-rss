@@ -20,11 +20,14 @@ _VK_API_URL = "https://api.vk.com/"
 def call(method, **kwargs):
     """Calls the specified VK API method."""
 
+    # TODO
+    kwargs.setdefault("count", "100")
     kwargs.setdefault("language", "0")
     kwargs.setdefault("access_token", config.ACCESS_TOKEN)
 
     url = _VK_API_URL + "method/{}?".format(method) + urlencode(kwargs)
-    debug_path = os.path.join("debug", method + ":" + urlencode(kwargs))
+    if config.DEBUG_MODE or config.WRITE_DEBUG:
+        debug_path = os.path.join("debug", method + ":" + urlencode(sorted(kwargs.items())))
 
     LOG.debug("Sending VK API request: %s...", url)
 

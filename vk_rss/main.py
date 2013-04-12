@@ -28,7 +28,8 @@ def main():
 
     pycl.log.setup(debug_mode = True)
 
-    pprint.pprint(tools.get_newsfeed())
+    newsfeed = tools.get_newsfeed()
+    #pprint.pprint(newsfeed)
 
 
 if __name__ == "__main__":

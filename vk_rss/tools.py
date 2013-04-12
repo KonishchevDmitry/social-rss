@@ -1,6 +1,7 @@
 """Tools for getting various data from VK."""
 
 import datetime
+import functools
 import logging
 import pprint
 import re
@@ -26,6 +27,10 @@ _USER_LINK_RE = re.compile(r"\[((?:id|club)\d+)\|([^\]]+)\]")
 """Matches a user link in a post text."""
 
 
+
+# Internal tools
+
+
 def _get_users(profiles, groups):
     """Maps profiles and groups to their IDs."""
 
@@ -34,7 +39,6 @@ def _get_users(profiles, groups):
     for profile in profiles:
         users[profile["uid"]] = {
             "id":    profile["uid"],
-            "login": profile["screen_name"],
             "name":  profile["first_name"] + " " + profile["last_name"],
             "photo": profile["photo"],
         }
@@ -42,7 +46,6 @@ def _get_users(profiles, groups):
     for group in groups:
         users[-group["gid"]] = {
             "id":    -group["gid"],
-            "login": group["screen_name"],
             "name":  group["name"],
             "photo": group["photo"],
         }
@@ -50,14 +53,23 @@ def _get_users(profiles, groups):
     return users
 
 
+def _get_user_url(user_id):
+    """Returns profile URL of the specified user."""
+
+    return _VK_URL + ("club" if user_id < 0 else "id") + str(abs(user_id))
+
+
 
 # Formatting
 
 
-def _block(text):
+def _block(text, style=None):
     """"Renders a text block."""
 
-    return "<p>" + text + "</p>"
+    if style is None:
+        return "<p>" + text + "</p>"
+    else:
+        return "<p style='{}'>{}</p>".format(style, text)
 
 
 def _duration(seconds):
@@ -85,33 +97,170 @@ def _image(src):
     return "<img style='display: block; border-style: none;' src='{}' />".format(src)
 
 
+def _image_block(url, image_src, text):
+    """Renders an image block."""
+
+    return (
+        "<table cellpadding='0' cellspacing='0'>"
+            "<tr valign='top'>"
+                "<td>{image}</td>"
+                "<td style='padding-left: 10px;'>{text}</td>"
+            "</tr>"
+        "</table>"
+    ).format(image=_link(url, _image(image_src)), text=text)
+
+
 def _link(url, text):
     """Renders a link."""
 
     return "<a href='{url}'>{text}</a>".format(url=url, text=text)
 
 
-def _link_block(url, image_src, description):
-    """Renders a link block."""
-
-    return (
-        "<table cellpadding='0' cellspacing='0'>"
-            "<tr valign='top'>"
-                "<td>{image}</td>"
-                "<td style='padding-left: 10px;'>{description}</td>"
-            "</tr>"
-        "</table>"
-    ).format(image=_link(url, _image(image_src)), description=description)
-
-
 def _parse_text(text):
     """Parses a post text."""
 
-    text = _TEXT_URL_RE.sub(r"\1<a href='\2'>\2</a>\3", text)
-    text = _DOMAIN_ONLY_TEXT_URL_RE.sub(r"\1<a href='http://\2'>\2</a>\3", text)
-    text = _USER_LINK_RE.sub(r"<b><a href='{}\1'>\2</a></b>".format(_VK_URL), text)
+    text = _TEXT_URL_RE.sub(r"\1" + _link(r"\2", r"\2") + r"\3", text)
+    text = _DOMAIN_ONLY_TEXT_URL_RE.sub(r"\1" + _link(r"http://\2", r"\2") + r"\3", text)
+    text = _USER_LINK_RE.sub(_em(_link(_VK_URL + r"\1", r"\2")), text)
 
     return text.strip()
+
+
+def _post(users, item):
+    """Parses a wall post item."""
+
+    user = users[item["source_id"]]
+
+    top_text = ""
+    bottom_text = ""
+
+    if (
+        "attachment" in item and
+        item["text"] == item["attachment"][item["attachment"]["type"]].get("title")
+    ):
+        main_text = ""
+    else:
+        main_text = item["text"]
+
+    attachments = item.get("attachments", [])
+
+    photo_count = functools.reduce(
+        lambda count, attachment:
+            count + ( attachment["type"] in ("app", "graffiti", "photo", "posted_photo") ),
+        attachments, 0)
+    big_image = photo_count == 1
+
+    for attachment in attachments:
+        info = attachment[attachment["type"]]
+
+        if attachment["type"] == "app":
+            top_text += _block(
+                _vk_link("app", info["app_id"],
+                    _image(info["src_big" if big_image else "src"])))
+
+        elif attachment["type"] == "graffiti":
+            top_text += _block(
+                _vk_link("graffiti", info["gid"],
+                    _image(info["src_big" if big_image else "src"])))
+
+
+        elif attachment["type"] == "link":
+            link_block = _em("Ссылка: " + _link(info["url"], info["title"]))
+            link_description = _parse_text(info["description"]) or info["title"]
+
+            if "image_src" in info:
+                if link_description:
+                    link_block += _image_block(info["url"], info["image_src"], link_description)
+                else:
+                    link_block += _block(_link(info["url"], _image(info["image_src"])))
+            elif link_description:
+                link_block += _block(link_description)
+
+            top_text += _block(link_block)
+
+
+        elif attachment["type"] in ("photo", "posted_photo"):
+            photo_src = info["src_big"] if big_image else info["src"]
+
+            # Photo may have pid == 0 and owner_id == 0 if it for example
+            # generated by an application.
+            if info["pid"] == 0 or info["owner_id"] == 0:
+                top_text += _block(
+                    _vk_link("wall", "{}_{}".format(user["id"], item["post_id"], _image(photo_src))))
+            else:
+                top_text += _block(
+                    _vk_link(
+                        "wall", "{user_id}_{post_id}?z=photo{owner_id}_{photo_id}%2Fwall{user_id}_{post_id}".format(
+                            user_id=user["id"], post_id=item["post_id"], owner_id=info["owner_id"], photo_id=info["pid"]),
+                        _image(photo_src)))
+
+
+        elif attachment["type"] == "audio":
+            bottom_text += _block(_em(
+                "Аудиозапись: " +
+                _vk_link("search",
+                    "?" + urlencode({
+                        "c[q]": info["performer"] + " - " + info["title"],
+                        "c[section]": "audio"
+                    }),
+                    "{} - {} ({})".format(info["performer"], info["title"],
+                        _duration(info["duration"])))))
+
+        elif attachment["type"] == "video":
+            top_text += _block(
+                _vk_link("video", "{}_{}".format(info["owner_id"], info["vid"]),
+                    _image(info["image"]) +
+                    _em("{} ({})".format(info["title"], _duration(info["duration"])))))
+
+
+        elif attachment["type"] == "doc":
+            bottom_text += _block(_em(
+                "Документ: {}".format(info["title"])))
+
+        elif attachment["type"] == "note":
+            bottom_text += _block(_em(
+                "Заметка: {}".format(info["title"])))
+
+        elif attachment["type"] == "page":
+            bottom_text += _block(_em(
+                "Страница: {}".format(info["title"])))
+
+        elif attachment["type"] == "poll":
+            bottom_text += _block(_em(
+                "Опрос: {}".format(info["question"])))
+
+
+        else:
+            LOG.error("Got an unknown attachment type %s with text '%s'",
+                attachment, item["text"])
+
+
+    text = top_text + _parse_text(main_text) + bottom_text
+
+    if "copy_owner_id" in item and "copy_post_id" in item:
+        text = _block(
+            _em(_link(
+                _get_user_url(item["copy_owner_id"]),
+                users[item["copy_owner_id"]]["name"]
+            )) + " пишет:"
+        ) + text
+
+        if "copy_text" in item:
+            text = _quote_block(item["copy_text"], text)
+
+    text = _image_block(_get_user_url(user["id"]), user["photo"], text)
+
+    return {
+        "url":   _VK_URL + "wall{}_{}".format(user["id"], item["post_id"]),
+        "title": user["name"],
+        "text":  text,
+    }
+
+
+def _quote_block(text, quoted_text):
+    """Renders a quote block."""
+
+    return _block(text) + _block(quoted_text, "margin-left: 1em;")
 
 
 def _vk_link(link_type, target, text):
@@ -139,139 +288,20 @@ def get_newsfeed():
 
     # TODO: don't change source
     items = []
-    for item in api_items:
-        supported = []
-        unsupported = []
+    for api_item in api_items:
 
-        user = users[item["source_id"]]
-        title = user["name"]
-
-        if item["type"] == "post":
-            text = item["text"]
-
-            if "attachment" in item and item["text"] == item["attachment"][item["attachment"]["type"]].get("title"):
-                text = ""
-
-            attachments = item.get("attachments", [])
-            big_image = len(attachments) > 1 # TODO
-            #photo_count = functools.reduce(
-            #    lambda count, attachment:
-            #        count + ( attachment["type"] in ( "photo", "posted_photo" ) ),
-            #    attachments, 0)
-
-            for attachment in attachments:
-                info = attachment[attachment["type"]]
-
-                if attachment["type"] == "app":
-                    supported.append(_vk_link("app", info["app_id"],
-                        _image(info["src_big" if big_image else "src"])))
-                elif attachment["type"] == "graffiti":
-                    supported.append(_vk_link("graffiti", info["gid"],
-                        _image(info["src_big" if big_image else "src"])))
-                elif attachment["type"] == "link":
-                    # TODO 
-                    description = _parse_text(info["description"]) or info["title"]
-
-                    html = _em("Ссылка: " + _link(info["url"], info["title"]))
-
-                    if info.get("image_src") and description:
-                        html += _link_block(info["url"], info["image_src"], description)
-                    elif info.get("image_src"):
-                        html += _block(_link(info["url"], _image(info["image_src"])))
-                    elif description:
-                        html += _block(description)
-
-                    supported.append(html)
-                elif attachment["type"] in ("photo", "posted_photo"):
-                    photo_src = info["src_big"] if big_image else info["src"]
-
-                    # Photo may have id = 0 and owner_id = 0 if it for example
-                    # generated by an application.
-                    if info["pid"] == 0 or info["owner_id"] == 0:
-                        supported.append(
-                            _vk_link("wall", "{}_{}".format(user["id"], item["post_id"], _image(photo_src))))
-                    else:
-                        supported.append(
-                            _vk_link(
-                                "wall", "{user_id}_{post_id}?z=photo{owner_id}_{photo_id}%2Fwall{user_id}_{post_id}".format(
-                                    user_id=user["id"], post_id=item["post_id"], owner_id=info["owner_id"], photo_id=info["pid"]),
-                                _image(photo_src)))
-                elif attachment["type"] == "video":
-                    supported.append(
-                        _vk_link("video", "{}_{}".format(info["owner_id"], info["vid"]),
-                            _image(info["image"]) +
-                            _em("{} ({})".format(info["title"], _duration(info["duration"])))))
-                elif attachment["type"] == "audio":
-                    unsupported.append(_em(
-                        "Аудиозапись: " +
-                        _vk_link("search",
-                            "?" + urlencode({
-                                "c[q]": info["performer"] + " - " + info["title"],
-                                "c[section]": "audio"
-                            }),
-                            "{} - {} ({})".format(info["performer"], info["title"],
-                                _duration(info["duration"])))))
-                elif attachment["type"] == "doc":
-                    unsupported.append(_em(
-                        "Документ: {}".format(info["title"])))
-                elif attachment["type"] == "note":
-                    unsupported.append(_em(
-                        "Заметка: {}".format(info["title"])))
-                elif attachment["type"] == "page":
-                    unsupported.append(_em(
-                        "Страница: {}".format(info["title"])))
-                elif attachment["type"] == "poll":
-                    unsupported.append(_em(
-                        "Опрос: {}".format(info["question"])))
-                else:
-                    TODO
+        if api_item["type"] == "post":
+            item = _post(users, api_item)
         else:
             # TODO
             continue
 
-        if supported:
-            text += "<p>" + "</p><p>".join(supported) + "</p>"
-
-#        text += _parse_text(item["text"])
-
-        if unsupported:
-            text += "<p>" + "</p><p>".join(unsupported) + "</p>"
-
-#        if "copy_owner_id" in item and "copy_post_id" in item:
-#            text = "<p><b><a href="{profile_url}">{user_name}</a></b> пишет:</p>".format(
-#                profile_url = _get_profile_url(item["copy_owner_id"]), user_name = users[item["copy_owner_id"]]["name"]) + text
+#        date = (
+#            datetime.datetime.fromtimestamp(api_item["date"])
+#            # Take MSK timezone into account
+#            + datetime.timedelta(hours = 4))
 #
-#            if "copy_text" in item:
-#                text = "<p>{}</p><div style="margin-left: 1em;">{}</div>".format(item["copy_text"], text)
-#
-#        if "reply_owner_id" in item and "reply_post_id" in item:
-#            text += (
-#                "<p><i>"
-#                    "В ответ на <a href="{vk_url}wall{item[reply_owner_id]}_{item[reply_post_id]}">запись</a> "
-#                    "пользователя <b><a href="{profile_url}">{user_name}</a></b>."
-#                "</i></p>".format(vk_url = _VK_URL, item = item,
-#                    profile_url = _get_profile_url(item["reply_owner_id"]), user_name = users[item["reply_owner_id"]]["name"]))
-#
-#        if show_photo:
-#            text = (
-#                "<table cellpadding="0" cellspacing="0"><tr valign="top">"
-#                    "<td><a href="{url}"><img {img_style} src="{photo}" /></a></td>"
-#                    "<td style="padding-left: 10px;">{text}</td>"
-#                "</tr></table>".format(
-#                    url = _get_profile_url(item["from_id"]), img_style = img_style,
-#                    photo = users[item["from_id"]]["photo"], text = text))
-
-        date = (
-            datetime.datetime.fromtimestamp(item["date"])
-            # Take MSK timezone into account
-            + datetime.timedelta(hours = 4))
-
-        items.append({
-            "title": title,
-#            "url":   "{0}wall{1}_{2}".format(_VK_URL, user["id"], item["post_id"]),
-            "text":  text,
-            "date":  date,
-        })
+        items.append(item)
 
     return {
 #        "url":        _VK_URL + profile_name,
