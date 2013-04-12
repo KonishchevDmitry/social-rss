@@ -1,55 +1,32 @@
-#!/usr/bin/env python3
-
-# TODO
+"""VK API client."""
 
 import cgi
 import json
 import logging
 import os
-import pprint
-import urllib.parse
 import urllib.request
+from urllib.parse import urlencode
 
-import pycl.log
 from pycl.core import Error
 
-LOG = logging.getLogger("vk-rss")
+from vk_rss import config
+
+LOG = logging.getLogger("vk-rss.api")
 
 
-# TODO
-DEBUG = False
-WRITE_DEBUG = True
-ACCESS_TOKEN = None
-
-
-def main():
-    """The script"s main function."""
-
-    global ACCESS_TOKEN
-
-    pycl.log.setup(debug_mode = True)
-
-    with open("access_token", "r") as access_token_file:
-        ACCESS_TOKEN = access_token_file.read().strip()
-
-    response = _api("newsfeed.get")
-
-    #pprint.pprint(response)
-
-
-def _api(method, **kwargs):
+def call(method, **kwargs):
     """Calls the specified VK API method."""
 
     kwargs.setdefault("language", "0")
-    kwargs.setdefault("access_token", ACCESS_TOKEN)
+    kwargs.setdefault("access_token", config.ACCESS_TOKEN)
 
-    url = "https://api.vk.com/method/{}?".format(method) + urllib.parse.urlencode(kwargs)
-    debug_path = os.path.join("debug", method + ":" + urllib.parse.urlencode(kwargs))
+    url = "https://api.vk.com/method/{}?".format(method) + urlencode(kwargs)
+    debug_path = os.path.join("debug", method + ":" + urlencode(kwargs))
 
     LOG.debug("Sending VK API request: %s...", url)
 
     try:
-        if DEBUG:
+        if config.DEBUG_MODE:
             with open(debug_path, "rb") as debug_response:
                 response = json.loads(debug_response.read().decode())
         else:
@@ -66,7 +43,7 @@ def _api(method, **kwargs):
 
                 response = http_response.read()
 
-                if WRITE_DEBUG:
+                if config.WRITE_DEBUG:
                     with open(debug_path, "wb") as debug_response:
                         debug_response.write(response)
 
@@ -86,7 +63,3 @@ def _api(method, **kwargs):
         return response["response"]
     except Exception as e:
         raise Error("Failed to process {} VK API request: {}", method, e)
-
-
-if __name__ == "__main__":
-    main()
