@@ -159,8 +159,9 @@ def _friend_item(users, user, item):
     text = ""
     for friend in item["friends"][1:]:
         friend = users[friend["uid"]]
-        text += _image_block(_get_user_url(
-            friend["id"]), friend["photo"], friend["name"])
+        text += _image_block(
+            _get_user_url(friend["id"]), friend["photo"],
+            _link(_get_user_url(friend["id"]), friend["name"]))
 
     return {
         "title": user["name"] + ": новые друзья",
