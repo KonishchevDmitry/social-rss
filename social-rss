@@ -2,14 +2,14 @@
 
 """Social RSS web server."""
 
+import argparse
+import errno
 import logging
-#import os
-#import sys
+import os
+import sys
 
 import tornado.ioloop
 import tornado.web
-# TODO
-#sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import pycl.log
 
@@ -35,22 +35,51 @@ class RootHandler(tornado.web.RequestHandler):
 def main():
     """The script"s main function."""
 
-    assert hasattr(config, "PORT")
-    assert hasattr(config, "ACCESS_TOKEN")
+    args = parse_args()
 
-    if not hasattr(config, "DEBUG_MODE"):
-        config.DEBUG_MODE = False
-    if not hasattr(config, "WRITE_DEBUG"):
-        config.WRITE_DEBUG = False
+    # Fill the config
+    config.DEBUG_MODE = args.debug | args.offline_debug
+    config.OFFLINE_DEBUG_MODE = args.offline_debug
+    config.WRITE_OFFLINE_DEBUG = args.write_offline_debug
 
-    pycl.log.setup(debug_mode = True)
+    pycl.log.setup(debug_mode=config.DEBUG_MODE)
+
+    if config.WRITE_OFFLINE_DEBUG:
+        try:
+            os.mkdir(config.OFFLINE_DEBUG_PATH)
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
 
     application = tornado.web.Application([
         ("/", RootHandler),
     ], debug=config.DEBUG_MODE)
 
-    application.listen(config.PORT)
+    application.listen(args.port)
     tornado.ioloop.IOLoop.instance().start()
+
+
+def parse_args():
+    """Parses command-line arguments."""
+
+    parser = argparse.ArgumentParser(description = "Social RSS web server")
+
+    debug_group = parser.add_mutually_exclusive_group()
+
+    debug_group.add_argument("-d", "--debug", action="store_true",
+        help="run in debug mode")
+
+    debug_group.add_argument("-o", "--offline-debug", action="store_true",
+        help="run in offline debug mode")
+
+    debug_group.add_argument("-w", "--write-offline-debug", action="store_true",
+        help="dump network data for offline debug mode")
+
+    parser.add_argument("port", type=int, help="port to listen to on")
+
+    args = parser.parse_args()
+
+    return args
 
 
 if __name__ == "__main__":

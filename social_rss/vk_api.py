@@ -26,13 +26,14 @@ def call(method, **kwargs):
     kwargs.setdefault("access_token", config.ACCESS_TOKEN)
 
     url = _VK_API_URL + "method/{}?".format(method) + urlencode(kwargs)
-    if config.DEBUG_MODE or config.WRITE_DEBUG:
-        debug_path = os.path.join("debug", method + ":" + urlencode(sorted(kwargs.items())))
+    if config.OFFLINE_DEBUG_MODE or config.WRITE_OFFLINE_DEBUG:
+        debug_path = os.path.join(config.OFFLINE_DEBUG_PATH,
+            "vk:" + method + ":" + urlencode(sorted(kwargs.items())))
 
     LOG.debug("Sending VK API request: %s...", url)
 
     try:
-        if config.DEBUG_MODE:
+        if config.OFFLINE_DEBUG_MODE:
             with open(debug_path, "rb") as debug_response:
                 response = json.loads(debug_response.read().decode())
         else:
@@ -49,7 +50,7 @@ def call(method, **kwargs):
 
                 response = http_response.read()
 
-                if config.WRITE_DEBUG:
+                if config.WRITE_OFFLINE_DEBUG:
                     with open(debug_path, "wb") as debug_response:
                         debug_response.write(response)
 
