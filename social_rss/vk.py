@@ -1,13 +1,18 @@
 """VK module."""
 
+import base64
+import binascii
 import functools
 import logging
 import re
 
 from urllib.parse import urlencode
 
+import tornado.web
+
 from pycl.core import Error
 
+import social_rss.rss
 from social_rss import vk_api
 
 LOG = logging.getLogger(__name__)
@@ -324,11 +329,48 @@ def _post_item(users, user, item):
 
 
 # TODO HERE
+import http.client
 
 
+class RequestHandler(tornado.web.RequestHandler):
+    """The server's root handler."""
 
-def get_newsfeed():
-    response = vk_api.call("newsfeed.get")
+    def get(self):
+        access_token = None
+        if "Authorization" in self.request.headers:
+            authorization = self.request.headers["Authorization"]
+            if authorization.startswith("Basic "):
+                try:
+                    authorization = base64.b64decode(authorization[len("Basic "):].encode()).decode()
+                    if ":" in authorization:
+                        access_token = authorization.split(":")[1].strip()
+                        LOG.error(access_token)
+                except binascii.Error:
+                    pass
+
+        if not access_token:
+            self.__unauthorized()
+            return
+
+        try:
+            newsfeed = _get_newsfeed(access_token)
+        except vk_api.ApiError as e:
+            if e.code == 5:
+                self.__unauthorized()
+            else:
+                raise
+        else:
+            self.set_header("Content-Type", "application/xml")
+            self.write(social_rss.rss.generate(newsfeed))
+            #import pprint
+            #self.write(pprint.pformat(newsfeed))
+
+    def __unauthorized(self):
+        self.set_header("WWW-Authenticate", 'Basic realm="insert realm"')
+        self.set_status(http.client.UNAUTHORIZED)
+
+def _get_newsfeed(access_token):
+    response = vk_api.call(access_token, "newsfeed.get")
 
     users = _get_users(response["profiles"], response["groups"])
     api_items = response["items"]

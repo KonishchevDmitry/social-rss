@@ -17,13 +17,22 @@ _VK_API_URL = "https://api.vk.com/"
 """VK API URL."""
 
 
-def call(method, **kwargs):
+class ApiError(Error):
+    """VK API error."""
+
+    def __init__(self, code, *args, **kwargs):
+        super(ApiError, self).__init__(*args, **kwargs)
+        self.code = code
+
+
+
+def call(access_token, method, **kwargs):
     """Calls the specified VK API method."""
 
     # TODO
     kwargs.setdefault("count", "100")
+    kwargs.setdefault("access_token", access_token)
     kwargs.setdefault("language", "0")
-    kwargs.setdefault("access_token", config.ACCESS_TOKEN)
 
     url = _VK_API_URL + "method/{}?".format(method) + urlencode(kwargs)
     if config.OFFLINE_DEBUG_MODE or config.WRITE_OFFLINE_DEBUG:
@@ -58,15 +67,20 @@ def call(method, **kwargs):
                     response = json.loads(response.decode(content_type_opts.get("charset", "utf-8")))
                 except Exception as e:
                     raise Error("Error while parsing the server's response: {}", e)
-
-        if "error" in response or "response" not in response:
-            error = response.get("error", {}).get("error_msg", "").strip()
-
-            if not error:
-                error = "Unknown error"
-
-            raise Error("The server returned an error: {}", error)
-
-        return response["response"]
     except Exception as e:
         raise Error("Failed to process {} VK API request: {}", method, e)
+
+    # TODO
+    if "error" in response or "response" not in response:
+        error = response.get("error", {})
+        error_msg = error.get("error_msg", "").strip()
+        error_code = error.get("error_code", 1)
+
+        if not error_msg:
+            error_msg = "Unknown error"
+
+        raise ApiError(error_code,
+            "Failed to process {} VK API request: "
+            "The server returned an error: {}", method, error_msg)
+
+    return response["response"]
