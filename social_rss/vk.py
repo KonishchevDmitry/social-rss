@@ -176,7 +176,7 @@ def _note_item(users, user, item):
     notes = item["notes"][1:]
 
     return {
-        "title":  user["name"],
+        "title":  user["name"] + ": заметка",
         "text":   "".join(
             _block(_em("Заметка: " + _vk_link(
                 "note", _vk_id(note["owner_id"], note["nid"]), note["title"])))
@@ -320,8 +320,7 @@ def _post_item(users, user, item):
     text = _image_block(_get_user_url(user["id"]), user["photo"], text)
 
     return {
-        # TODO
-        "title":  user["name"],
+        "title":  user["name"] + ": запись на стене",
         "text":   text,
         "url":    _VK_URL + "wall" + _vk_id(user["id"], item["post_id"]),
         "unique": True,
@@ -389,7 +388,7 @@ def _get_newsfeed(access_token):
             elif api_item["type"] == "photo_tag":
                 item = _photo_item(users, user, api_item, "новые отметки на фотографиях")
             elif api_item["type"] == "wall_photo":
-                item = _photo_item(users, user, api_item, "новые фотографии на стенах")
+                item = _photo_item(users, user, api_item, "новые фотографии на стене")
             elif api_item["type"] == "friend":
                 item = _friend_item(users, user, api_item)
             elif api_item["type"] == "note":
