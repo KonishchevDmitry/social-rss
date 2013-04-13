@@ -9,9 +9,9 @@ from urllib.parse import urlencode
 
 from pycl.core import Error
 
-from vk_rss import config
+from social_rss import config
 
-LOG = logging.getLogger("vk-rss.api")
+LOG = logging.getLogger(__name__)
 
 _VK_API_URL = "https://api.vk.com/"
 """VK API URL."""

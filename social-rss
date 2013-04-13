@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 
-"""VK RSS main module."""
+"""Social RSS web server."""
 
 import logging
-import os
-import sys
+#import os
+#import sys
 
 import tornado.ioloop
 import tornado.web
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+# TODO
+#sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import pycl.log
 
-from vk_rss import config
-from vk_rss import rss
-from vk_rss import tools
+from social_rss import config
+from social_rss import rss
+from social_rss import vk
 
-LOG = logging.getLogger("vk-rss.main")
+LOG = logging.getLogger("social_rss.main")
 
 
 class RootHandler(tornado.web.RequestHandler):
@@ -26,7 +26,7 @@ class RootHandler(tornado.web.RequestHandler):
     def get(self):
         # TODO
         self.set_header("Content-Type", "application/xml")
-        newsfeed = tools.get_newsfeed()
+        newsfeed = vk.get_newsfeed()
         self.write(rss.generate(newsfeed))
         #import pprint
         #self.write(pprint.pformat(newsfeed))

@@ -8,7 +8,7 @@ import xml.sax.saxutils
 
 import tornado.template
 
-from vk_rss import config
+from social_rss import config
 
 
 TEMPLATE_LOADER = tornado.template.Loader(os.path.dirname(__file__), autoescape=None)

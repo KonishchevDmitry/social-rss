@@ -1,4 +1,4 @@
-"""Tools for getting various data from VK."""
+"""VK module."""
 
 import functools
 import logging
@@ -8,9 +8,9 @@ from urllib.parse import urlencode
 
 from pycl.core import Error
 
-from vk_rss import api
+from social_rss import vk_api
 
-LOG = logging.getLogger("vk-rss.tools")
+LOG = logging.getLogger(__name__)
 
 
 _VK_URL = "https://vk.com/"
@@ -328,7 +328,7 @@ def _post_item(users, user, item):
 
 
 def get_newsfeed():
-    response = api.call("newsfeed.get")
+    response = vk_api.call("newsfeed.get")
 
     users = _get_users(response["profiles"], response["groups"])
     api_items = response["items"]
