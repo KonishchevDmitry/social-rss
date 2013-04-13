@@ -3,7 +3,9 @@
 import base64
 import binascii
 import functools
+import http.client
 import logging
+import pprint
 import re
 
 from urllib.parse import urlencode
@@ -33,7 +35,114 @@ _USER_LINK_RE = re.compile(r"\[((?:id|club)\d+)\|([^\]]+)\]")
 
 
 
+class RequestHandler(tornado.web.RequestHandler):
+    """VK RSS request handler."""
+
+    def get(self):
+        """Handles the request."""
+
+        access_token = None
+
+        if "Authorization" in self.request.headers:
+            authorization = self.request.headers["Authorization"]
+
+            if authorization.startswith("Basic "):
+                authorization = authorization[len("Basic "):]
+
+                try:
+                    authorization = base64.b64decode(
+                        authorization.encode()).decode()
+                except binascii.Error:
+                    pass
+                else:
+                    if ":" in authorization:
+                        access_token = authorization.split(":")[1].strip()
+
+        if not access_token:
+            self.__unauthorized()
+            return
+
+        try:
+            newsfeed = _get_newsfeed(access_token)
+        except vk_api.ApiError as e:
+            if e.code == 5:
+                self.__unauthorized(error=str(e))
+                return
+            else:
+                raise
+
+        self.set_header("Content-Type", "application/rss+xml")
+        self.write(social_rss.rss.generate(newsfeed))
+
+
+    def __unauthorized(self, error=None):
+        """Requests authorization from client."""
+
+        if error is None:
+            error = "Please enter VK access_token in password box."
+
+        self.set_header("WWW-Authenticate", 'Basic realm="{}"'.format(error))
+        self.set_status(http.client.UNAUTHORIZED)
+
+
+
 # Internal tools
+
+
+def _get_newsfeed(access_token):
+    """Returns VK news feed."""
+
+    response = vk_api.call(access_token, "newsfeed.get")
+
+    try:
+        items = []
+        users = _get_users(response["profiles"], response["groups"])
+
+        for api_item in response["items"]:
+            try:
+                user = users[api_item["source_id"]]
+
+                if api_item["type"] == "post":
+                    item = _post_item(users, user, api_item)
+                elif api_item["type"] == "photo":
+                    item = _photo_item(users, user, api_item, "новые фотографии")
+                elif api_item["type"] == "photo_tag":
+                    item = _photo_item(users, user, api_item, "новые отметки на фотографиях")
+                elif api_item["type"] == "wall_photo":
+                    item = _photo_item(users, user, api_item, "новые фотографии на стене")
+                elif api_item["type"] == "friend":
+                    item = _friend_item(users, user, api_item)
+                elif api_item["type"] == "note":
+                    item = _note_item(users, user, api_item)
+                else:
+                    raise Error("Unknown news item type.")
+
+                item["author"] = user["name"]
+            except Exception:
+                LOG.exception("Failed to process news feed item:\n%s",
+                    pprint.pformat(api_item))
+
+                item = {
+                    "title": "Внутренняя ошибка сервера",
+                    "text":  "При обработке новости произошла внутренняя ошибка сервера",
+                }
+
+            item["id"] = "id:{}:{}:{}".format(
+                api_item["source_id"], api_item["type"], api_item["date"])
+            item["time"] = api_item["date"]
+
+            items.append(item)
+    except Exception:
+        LOG.exception("Failed to process news feed:\n%s", pprint.pformat(response))
+        raise
+
+    return {
+        "title":       "ВКонтакте: Новости",
+        "url":         _VK_URL,
+        "image":       _VK_URL + "press/Simple.png",
+        "description": "Новостная лента ВКонтакте",
+        "items":       items,
+    }
 
 
 def _get_users(profiles, groups):
@@ -324,96 +433,4 @@ def _post_item(users, user, item):
         "text":   text,
         "url":    _VK_URL + "wall" + _vk_id(user["id"], item["post_id"]),
         "unique": True,
-    }
-
-
-
-# TODO HERE
-import http.client
-
-
-class RequestHandler(tornado.web.RequestHandler):
-    """The server's root handler."""
-
-    def get(self):
-        access_token = None
-        if "Authorization" in self.request.headers:
-            authorization = self.request.headers["Authorization"]
-            if authorization.startswith("Basic "):
-                try:
-                    authorization = base64.b64decode(authorization[len("Basic "):].encode()).decode()
-                    if ":" in authorization:
-                        access_token = authorization.split(":")[1].strip()
-                        LOG.error(access_token)
-                except binascii.Error:
-                    pass
-
-        if not access_token:
-            self.__unauthorized()
-            return
-
-        try:
-            newsfeed = _get_newsfeed(access_token)
-        except vk_api.ApiError as e:
-            if e.code == 5:
-                self.__unauthorized()
-            else:
-                raise
-        else:
-            self.set_header("Content-Type", "application/xml")
-            self.write(social_rss.rss.generate(newsfeed))
-            #import pprint
-            #self.write(pprint.pformat(newsfeed))
-
-    def __unauthorized(self):
-        self.set_header("WWW-Authenticate", 'Basic realm="insert realm"')
-        self.set_status(http.client.UNAUTHORIZED)
-
-def _get_newsfeed(access_token):
-    response = vk_api.call(access_token, "newsfeed.get")
-
-    users = _get_users(response["profiles"], response["groups"])
-    api_items = response["items"]
-    del response
-
-    items = []
-    for api_item in api_items:
-        try:
-            user = users[api_item["source_id"]]
-
-            if api_item["type"] == "post":
-                item = _post_item(users, user, api_item)
-            elif api_item["type"] == "photo":
-                item = _photo_item(users, user, api_item, "новые фотографии")
-            elif api_item["type"] == "photo_tag":
-                item = _photo_item(users, user, api_item, "новые отметки на фотографиях")
-            elif api_item["type"] == "wall_photo":
-                item = _photo_item(users, user, api_item, "новые фотографии на стене")
-            elif api_item["type"] == "friend":
-                item = _friend_item(users, user, api_item)
-            elif api_item["type"] == "note":
-                item = _note_item(users, user, api_item)
-            else:
-                raise Error("Unknown news item type.")
-
-            item["author"] = user["name"]
-        except Exception:
-            LOG.exception("Failed to process news feed item %s.", api_item)
-
-            item = {
-                "title": "Внутренняя ошибка сервера",
-                "text":  "При обработке новости произошла внутренняя ошибка сервера",
-            }
-
-        # TODO: id, url
-        item["id"] = "{}:{}:{}".format(api_item["source_id"], api_item["type"], api_item["date"])
-        item["time"] = api_item["date"]
-        items.append(item)
-
-    return {
-        "title":       "ВКонтакте: Новости",
-        "url":         _VK_URL,
-        "image":       _VK_URL + "press/Simple.png",
-        "description": "Новостная лента ВКонтакте",
-        "items":      items,
     }
