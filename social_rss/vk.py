@@ -72,6 +72,9 @@ def _vk_id(owner_id, object_id):
 
 
 # Rendering
+#
+# Note: Firefox ignores styles when displays RSS. So, it's better to limit use
+# of styles.
 
 
 def _block(text, style=None):
@@ -114,10 +117,7 @@ def _image_block(url, image_src, text):
     return (
         "<table cellpadding='0' cellspacing='0'>"
             "<tr valign='top'>"
-                "<td>{image}</td>"
-                # TODO
-                "<td width='10px'></td>" # Firefox ignores styles when displays RSS
-                "<td>{text}</td>"
+                "<td>{image}</td><td width='10'></td><td>{text}</td>"
             "</tr>"
         "</table>"
     ).format(image=_link(url, _image(image_src)), text=text)
