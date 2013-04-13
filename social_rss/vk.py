@@ -279,7 +279,7 @@ def _post_item(users, user, item):
             top_text += _block(
                 _vk_link("video", _vk_id(info["owner_id"], info["vid"]),
                     _image(info["image"]) +
-                    _em("{} ({})".format(info["title"], _duration(info["duration"])))))
+                    _block(_em("{} ({})".format(info["title"], _duration(info["duration"]))))))
 
 
         elif attachment["type"] == "doc":
