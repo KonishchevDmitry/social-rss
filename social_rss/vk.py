@@ -278,9 +278,8 @@ def _post_item(users, user, item):
 
         elif attachment["type"] == "video":
             top_text += _block(
-                _vk_link("video", _vk_id(info["owner_id"], info["vid"]),
-                    _image(info["image"]) +
-                    _block(_em("{} ({})".format(info["title"], _duration(info["duration"]))))))
+                _image(info["image"]) +
+                _block(_em("{} ({})".format(info["title"], _duration(info["duration"])))))
 
 
         elif attachment["type"] == "doc":
@@ -321,6 +320,7 @@ def _post_item(users, user, item):
     text = _image_block(_get_user_url(user["id"]), user["photo"], text)
 
     return {
+        # TODO
         "title":  user["name"],
         "text":   text,
         "url":    _VK_URL + "wall" + _vk_id(user["id"], item["post_id"]),
