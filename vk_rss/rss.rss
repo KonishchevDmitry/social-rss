@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<rss version="2.0">
+    <channel>
+        <title>{{ escape(feed["title"]) }}</title>
+        <link>{{ escape(feed["url"]) }}</link>
+        <image><url>{{ escape(feed["image"]) }}</url></image>
+        <description>{{ escape(feed["description"]) }}</description>
+
+        {% for item in feed["items"] %}
+            <item>
+                <title>{{ escape(item["title"]) }}</title>
+                <pubDate>{{ escape(date(item["time"])) }}</pubDate>
+
+                {% if "url" in item %}
+                    <link>{{ escape(item["url"]) }}</link>
+                {% end %}
+
+                {% if "author" in item %}
+                    <author>{{ escape(item["author"]) }}</author>
+                {% end %}
+
+                {% if "url" in item and item.get("unique") %}
+                    <guid isPermaLink="true">{{ escape(item["url"]) }}</guid>
+                {% else %}
+                    <guid isPermaLink="false">{{ escape(item["id"]) }}</guid>
+                {% end %}
+
+                <description>{{ escape(item["text"]) }}</description>
+            </item>
+        {% end %}
+    </channel>
+</rss>
