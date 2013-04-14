@@ -29,8 +29,6 @@ class ApiError(Error):
 def call(access_token, method, **kwargs):
     """Calls the specified VK API method."""
 
-    # TODO
-    kwargs.setdefault("count", "100")
     kwargs.setdefault("access_token", access_token)
     kwargs.setdefault("language", "0")
 
@@ -70,7 +68,6 @@ def call(access_token, method, **kwargs):
     except Exception as e:
         raise Error("Failed to process {} VK API request: {}", method, e)
 
-    # TODO
     if "error" in response or "response" not in response:
         error = response.get("error", {})
         error_msg = error.get("error_msg", "").strip()
