@@ -6,10 +6,12 @@ import argparse
 import errno
 import logging
 import os
+import sys
 
 import tornado.ioloop
 import tornado.web
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "pycl"))
 import pycl.log
 
 import social_rss.vk
