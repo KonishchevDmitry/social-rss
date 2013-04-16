@@ -85,6 +85,10 @@ def _get_newsfeed(access_token):
                 else:
                     raise Error("Unknown news item type.")
 
+                # This item should be skipped
+                if item is None:
+                    continue
+
                 item["author"] = user["name"]
             except Exception:
                 LOG.exception("Failed to process news feed item:\n%s",
@@ -292,6 +296,11 @@ def _post_item(users, user, item):
 
     top_text = ""
     bottom_text = ""
+    attachments = item.get("attachments", [])
+
+    if not item["text"] and not attachments and "geo" in item:
+        LOG.debug("Skip check-in item from %s from %s.", user["name"], item["date"])
+        return
 
     if (
         "attachment" in item and
@@ -300,8 +309,6 @@ def _post_item(users, user, item):
         main_text = ""
     else:
         main_text = item["text"]
-
-    attachments = item.get("attachments", [])
 
     photo_count = functools.reduce(
         lambda count, attachment:
