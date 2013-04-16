@@ -10,11 +10,12 @@ For now it supports only [VK](https://vk.com/) social network.
 ```sh
 # Clone the source code
 $ git clone git@github.com:KonishchevDmitry/social-rss.git
+$ cd social-rss
 $ git submodule init
 $ git submodule update
 
 # Run the server (requires Python 3 and Tornado web framework)
-$ social-rss/social-rss 8888
+$ ./social-rss 8888
 ```
 
 
