@@ -1,21 +1,16 @@
 """VK module."""
 
-import base64
-import binascii
 import functools
-import http.client
 import logging
 import pprint
 import re
 
 from urllib.parse import urlencode
 
-import tornado.web
-
 from pycl.core import Error
 
-import social_rss.rss
 from social_rss import vk_api
+from social_rss.request import BaseRequestHandler
 
 LOG = logging.getLogger(__name__)
 
@@ -35,54 +30,27 @@ _USER_LINK_RE = re.compile(r"\[((?:id|club)\d+)\|([^\]]+)\]")
 
 
 
-class RequestHandler(tornado.web.RequestHandler):
+class RequestHandler(BaseRequestHandler):
     """VK RSS request handler."""
 
     def get(self):
         """Handles the request."""
 
-        access_token = None
-
-        if "Authorization" in self.request.headers:
-            authorization = self.request.headers["Authorization"]
-
-            if authorization.startswith("Basic "):
-                authorization = authorization[len("Basic "):]
-
-                try:
-                    authorization = base64.b64decode(
-                        authorization.encode()).decode()
-                except binascii.Error:
-                    pass
-                else:
-                    if ":" in authorization:
-                        access_token = authorization.split(":")[1].strip()
-
-        if not access_token:
-            self.__unauthorized()
+        credentials = self._get_credentials()
+        if credentials is None:
+            self._unauthorized("Please enter VK access_token in password box.")
             return
 
         try:
-            newsfeed = _get_newsfeed(access_token)
+            newsfeed = _get_newsfeed(credentials[1])
         except vk_api.ApiError as e:
             if e.code == 5:
-                self.__unauthorized(error=str(e))
+                self._unauthorized(str(e))
                 return
             else:
                 raise
 
-        self.set_header("Content-Type", "application/rss+xml")
-        self.write(social_rss.rss.generate(newsfeed))
-
-
-    def __unauthorized(self, error=None):
-        """Requests authorization from client."""
-
-        if error is None:
-            error = "Please enter VK access_token in password box."
-
-        self.set_header("WWW-Authenticate", 'Basic realm="{}"'.format(error))
-        self.set_status(http.client.UNAUTHORIZED)
+        self._write_rss(newsfeed)
 
 
 
