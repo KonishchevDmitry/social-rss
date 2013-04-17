@@ -30,7 +30,7 @@ def main():
     config.OFFLINE_DEBUG_MODE = args.offline_debug
     config.WRITE_OFFLINE_DEBUG = args.write_offline_debug
 
-    pycl.log.setup(debug_mode=config.DEBUG_MODE)
+    pycl.log.setup(include_time=True, debug_mode=config.DEBUG_MODE)
 
     if config.WRITE_OFFLINE_DEBUG:
         try:
