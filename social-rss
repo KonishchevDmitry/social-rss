@@ -14,6 +14,7 @@ import tornado.web
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "pycl"))
 import pycl.log
 
+import social_rss.tw
 import social_rss.vk
 from social_rss import config
 
@@ -40,6 +41,7 @@ def main():
                 raise
 
     application = tornado.web.Application([
+        ("/twitter.rss", social_rss.tw.RequestHandler),
         ("/vk.rss", social_rss.vk.RequestHandler),
     ], debug=config.DEBUG_MODE)
 
