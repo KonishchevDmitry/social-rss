@@ -29,6 +29,23 @@ _USER_LINK_RE = re.compile(r"\[((?:id|club)\d+)\|([^\]]+)\]")
 """Matches a user link in a post text."""
 
 
+_CATEGORY_TYPE = "type/"
+"""Item type."""
+
+_CATEGORY_TYPE_REPOST = _CATEGORY_TYPE + "repost"
+"""Reposted item type."""
+
+
+_CATEGORY_SOURCE = "source/"
+"""Item source."""
+
+_CATEGORY_SOURCE_USER = _CATEGORY_SOURCE + "user/"
+"""User item."""
+
+_CATEGORY_SOURCE_GROUP = _CATEGORY_SOURCE + "group/"
+"""Group item."""
+
+
 
 class RequestHandler(BaseRequestHandler):
     """VK RSS request handler."""
@@ -90,6 +107,10 @@ def _get_newsfeed(access_token):
                     continue
 
                 item["author"] = user["name"]
+                item.setdefault("categories", set()).update([
+                    _CATEGORY_TYPE + api_item["type"],
+                    (_CATEGORY_SOURCE_GROUP if user["id"] < 0 else _CATEGORY_SOURCE_USER) + _get_profile_name(user["id"]),
+                ])
             except Exception:
                 LOG.exception("Failed to process news feed item:\n%s",
                     pprint.pformat(api_item))
@@ -139,10 +160,16 @@ def _get_users(profiles, groups):
     return users
 
 
+def _get_profile_name(user_id):
+    """Returns profile name by user id."""
+
+    return ("club" if user_id < 0 else "id") + str(abs(user_id))
+
+
 def _get_user_url(user_id):
     """Returns profile URL of the specified user."""
 
-    return _VK_URL + ("club" if user_id < 0 else "id") + str(abs(user_id))
+    return _VK_URL + _get_profile_name(user_id)
 
 
 def _vk_id(owner_id, object_id):
@@ -296,6 +323,9 @@ def _post_item(users, user, item):
 
     top_text = ""
     bottom_text = ""
+
+    categories = set()
+    # TODO: sort
     attachments = item.get("attachments", [])
 
     if not item["text"] and not attachments and "geo" in item:
@@ -318,6 +348,7 @@ def _post_item(users, user, item):
 
     for attachment in attachments:
         info = attachment[attachment["type"]]
+        add_category = True
 
         if attachment["type"] == "app":
             top_text += _block(
@@ -345,7 +376,11 @@ def _post_item(users, user, item):
             top_text += _block(link_block)
 
 
-        elif attachment["type"] in ("photo", "posted_photo"):
+        elif attachment["type"] == "photo":
+            top_text += _photo(info, big_image)
+            add_category = False
+
+        elif attachment["type"] == "posted_photo":
             top_text += _photo(info, big_image)
 
 
@@ -387,6 +422,9 @@ def _post_item(users, user, item):
             LOG.error("Got an unknown attachment type %s with text '%s'",
                 attachment, item["text"])
 
+        if add_category:
+            categories.add(_CATEGORY_TYPE + attachment["type"])
+
 
     text = top_text + _parse_text(main_text) + bottom_text
 
@@ -401,11 +439,14 @@ def _post_item(users, user, item):
         if "copy_text" in item:
             text = _quote_block(item["copy_text"], text)
 
+        categories.add(_CATEGORY_TYPE_REPOST)
+
     text = _image_block(_get_user_url(user["id"]), user["photo"], text)
 
     return {
-        "title":  user["name"] + ": запись на стене",
-        "text":   text,
-        "url":    _VK_URL + "wall" + _vk_id(user["id"], item["post_id"]),
-        "unique": True,
+        "title":      user["name"] + ": запись на стене",
+        "text":       text,
+        "url":        _VK_URL + "wall" + _vk_id(user["id"], item["post_id"]),
+        "unique":     True,
+        "categories": categories,
     }
