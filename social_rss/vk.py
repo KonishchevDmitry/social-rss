@@ -321,12 +321,32 @@ def _photo_item(users, user, item, title):
 def _post_item(users, user, item):
     """Parses a wall post item."""
 
+    attachment_order = (
+        "doc",
+        "note",
+        "page",
+        "poll",
+        "posted_photo",
+        "photo",
+        "graffiti",
+        "app",
+        "video",
+        "link",
+        "audio",
+    )
+
+    def attachment_sort_key(attachment):
+        try:
+            return attachment_order.index(attachment["type"])
+        except ValueError:
+            return len(attachment_order)
+
     top_text = ""
     bottom_text = ""
-
     categories = set()
-    # TODO: sort
-    attachments = item.get("attachments", [])
+
+    attachments = sorted(
+        item.get("attachments", []), key=attachment_sort_key)
 
     if not item["text"] and not attachments and "geo" in item:
         LOG.debug("Skip check-in item from %s from %s.", user["name"], item["date"])
@@ -402,25 +422,26 @@ def _post_item(users, user, item):
 
 
         elif attachment["type"] == "doc":
-            bottom_text += _block(_em(
+            top_text += _block(_em(
                 "Документ: {}".format(info["title"])))
 
         elif attachment["type"] == "note":
-            bottom_text += _block(_em(
+            top_text += _block(_em(
                 "Заметка: {}".format(info["title"])))
 
         elif attachment["type"] == "page":
-            bottom_text += _block(_em(
+            top_text += _block(_em(
                 "Страница: {}".format(info["title"])))
 
         elif attachment["type"] == "poll":
-            bottom_text += _block(_em(
+            top_text += _block(_em(
                 "Опрос: {}".format(info["question"])))
 
 
         else:
             LOG.error("Got an unknown attachment type %s with text '%s'",
                 attachment, item["text"])
+
 
         if add_category:
             categories.add(_CATEGORY_TYPE + attachment["type"])
