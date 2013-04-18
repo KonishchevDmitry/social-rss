@@ -25,6 +25,10 @@
                     <guid isPermaLink="false">{{ escape(item["id"]) }}</guid>
                 {% end %}
 
+                {% for category in item.get("categories", []) %}
+                    <category>{{ escape(category) }}</category>
+                {% end %}
+
                 <description>{{ escape(item["text"]) }}</description>
             </item>
         {% end %}

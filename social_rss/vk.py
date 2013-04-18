@@ -10,6 +10,7 @@ from urllib.parse import urlencode
 from pycl.core import Error
 
 from social_rss import vk_api
+from social_rss.render import escape as _escape
 from social_rss.request import BaseRequestHandler
 
 LOG = logging.getLogger(__name__)
@@ -19,6 +20,9 @@ _VK_URL = "https://vk.com/"
 """VK URL."""
 
 
+_BR_RE = re.compile(r"<br\s*/?>")
+"""Matches a <br> tag."""
+
 _TEXT_URL_RE = re.compile(r"(^|\s|>)(https?://[^']+?)(\.?(?:<|\s|$))")
 """Matches a URL in a plain text."""
 
@@ -27,6 +31,23 @@ _DOMAIN_ONLY_TEXT_URL_RE = re.compile(r"(^|\s|>)((?:[a-z0-9](?:[-a-z0-9]*[a-z0-9
 
 _USER_LINK_RE = re.compile(r"\[((?:id|club)\d+)\|([^\]]+)\]")
 """Matches a user link in a post text."""
+
+
+_CATEGORY_TYPE = "type/"
+"""Item type."""
+
+_CATEGORY_TYPE_REPOST = _CATEGORY_TYPE + "repost"
+"""Reposted item type."""
+
+
+_CATEGORY_SOURCE = "source/"
+"""Item source."""
+
+_CATEGORY_SOURCE_USER = _CATEGORY_SOURCE + "user/"
+"""User item."""
+
+_CATEGORY_SOURCE_GROUP = _CATEGORY_SOURCE + "group/"
+"""Group item."""
 
 
 
@@ -85,7 +106,15 @@ def _get_newsfeed(access_token):
                 else:
                     raise Error("Unknown news item type.")
 
-                item["author"] = user["name"]
+                # This item should be skipped
+                if item is None:
+                    continue
+
+                item["author"] = _escape(user["name"])
+                item.setdefault("categories", set()).update([
+                    _CATEGORY_TYPE + api_item["type"],
+                    (_CATEGORY_SOURCE_GROUP if user["id"] < 0 else _CATEGORY_SOURCE_USER) + _get_profile_name(user["id"]),
+                ])
             except Exception:
                 LOG.exception("Failed to process news feed item:\n%s",
                     pprint.pformat(api_item))
@@ -135,10 +164,16 @@ def _get_users(profiles, groups):
     return users
 
 
+def _get_profile_name(user_id):
+    """Returns profile name by user id."""
+
+    return ("club" if user_id < 0 else "id") + str(abs(user_id))
+
+
 def _get_user_url(user_id):
     """Returns profile URL of the specified user."""
 
-    return _VK_URL + ("club" if user_id < 0 else "id") + str(abs(user_id))
+    return _VK_URL + _get_profile_name(user_id)
 
 
 def _vk_id(owner_id, object_id):
@@ -154,13 +189,13 @@ def _vk_id(owner_id, object_id):
 # of styles.
 
 
-def _block(text, style=None):
+def _block(html, style=None):
     """"Renders a text block."""
 
     if style is None:
-        return "<p>" + text + "</p>"
+        return "<p>" + html + "</p>"
     else:
-        return "<p style='{}'>{}</p>".format(style, text)
+        return "<p style='{}'>{}</p>".format(style, html)
 
 
 def _duration(seconds):
@@ -176,34 +211,34 @@ def _duration(seconds):
         return "{:02d}:{:02d}".format(minutes, seconds)
 
 
-def _em(text):
+def _em(html):
     """Renders an emphasized text."""
 
-    return "<b>" + text + "</b>"
+    return "<b>" + html + "</b>"
 
 
 def _image(src):
     """Renders an image."""
 
-    return "<img style='display: block; border-style: none;' src='{}' />".format(src)
+    return "<img style='display: block; border-style: none;' src='{}' />".format(_escape(src))
 
 
-def _image_block(url, image_src, text):
+def _image_block(url, image_src, html):
     """Renders an image block."""
 
     return (
         "<table cellpadding='0' cellspacing='0'>"
             "<tr valign='top'>"
-                "<td>{image}</td><td width='10'></td><td>{text}</td>"
+                "<td>{image}</td><td width='10'></td><td>{html}</td>"
             "</tr>"
         "</table>"
-    ).format(image=_link(url, _image(image_src)), text=text)
+    ).format(image=_link(url, _image(image_src)), html=html)
 
 
-def _link(url, text):
+def _link(url, html):
     """Renders a link."""
 
-    return "<a href='{url}'>{text}</a>".format(url=url, text=text)
+    return "<a href='{url}'>{html}</a>".format(url=_escape(url), html=html)
 
 
 def _photo(info, big):
@@ -214,16 +249,16 @@ def _photo(info, big):
             _image(info["src_big"] if big else info["src"])))
 
 
-def _quote_block(text, quoted_text):
+def _quote_block(html, quoted_html):
     """Renders a quote block."""
 
-    return _block(text) + _block(quoted_text, "margin-left: 1em;")
+    return _block(html) + _block(quoted_html, "margin-left: 1em;")
 
 
-def _vk_link(link_type, target, text):
+def _vk_link(link_type, target, html):
     """Renders a VK link."""
 
-    return _link(_VK_URL + link_type + target, text)
+    return _link(_VK_URL + link_type + target, html)
 
 
 
@@ -233,16 +268,16 @@ def _vk_link(link_type, target, text):
 def _friend_item(users, user, item):
     """Parses a new friend item."""
 
-    text = ""
+    html = ""
     for friend in item["friends"][1:]:
         friend = users[friend["uid"]]
-        text += _image_block(
+        html += _image_block(
             _get_user_url(friend["id"]), friend["photo"],
-            _link(_get_user_url(friend["id"]), friend["name"]))
+            _link(_get_user_url(friend["id"]), _escape(friend["name"])))
 
     return {
-        "title": user["name"] + ": новые друзья",
-        "text":  text,
+        "title": _escape(user["name"] + ": новые друзья"),
+        "text":  html,
         "url":   "{}friends?id={}&section=all".format(_VK_URL, user["id"]),
     }
 
@@ -253,10 +288,10 @@ def _note_item(users, user, item):
     notes = item["notes"][1:]
 
     return {
-        "title":  user["name"] + ": заметка",
+        "title":  _escape(user["name"] + ": заметка"),
         "text":   "".join(
             _block(_em("Заметка: " + _vk_link(
-                "note", _vk_id(note["owner_id"], note["nid"]), note["title"])))
+                "note", _vk_id(note["owner_id"], note["nid"]), _escape(note["title"]))))
             for note in notes
         ),
         "url":    _VK_URL + "note" + _vk_id(notes[0]["owner_id"], notes[0]["nid"]),
@@ -267,11 +302,15 @@ def _note_item(users, user, item):
 def _parse_text(text):
     """Parses a post text."""
 
-    text = _TEXT_URL_RE.sub(r"\1" + _link(r"\2", r"\2") + r"\3", text)
-    text = _DOMAIN_ONLY_TEXT_URL_RE.sub(r"\1" + _link(r"http://\2", r"\2") + r"\3", text)
-    text = _USER_LINK_RE.sub(_em(_link(_VK_URL + r"\1", r"\2")), text)
+    text = _BR_RE.sub("\n", text.replace("\n", " "))
 
-    return text.strip()
+    html = _escape(text)
+    html = _TEXT_URL_RE.sub(r"\1" + _link(r"\2", r"\2") + r"\3", html)
+    html = _DOMAIN_ONLY_TEXT_URL_RE.sub(r"\1" + _link(r"http://\2", r"\2") + r"\3", html)
+    html = _USER_LINK_RE.sub(_em(_link(_VK_URL + r"\1", r"\2")), html)
+    html = html.replace("\n", "<br>")
+
+    return html.strip()
 
 
 def _photo_item(users, user, item, title):
@@ -280,7 +319,7 @@ def _photo_item(users, user, item, title):
     photos = item["photos"][1:]
 
     return {
-        "title":  user["name"] + ": " + title,
+        "title":  _escape(user["name"] + ": " + title),
         "text":   "".join(_photo(photo, big=len(photos) == 1) for photo in photos),
         "url":    _VK_URL + "photo" + _vk_id(photos[0]["owner_id"], photos[0]["pid"]),
         "unique": True,
@@ -290,18 +329,44 @@ def _photo_item(users, user, item, title):
 def _post_item(users, user, item):
     """Parses a wall post item."""
 
-    top_text = ""
-    bottom_text = ""
+    attachment_order = (
+        "doc",
+        "note",
+        "page",
+        "poll",
+        "posted_photo",
+        "photo",
+        "graffiti",
+        "app",
+        "video",
+        "link",
+        "audio",
+    )
+
+    def attachment_sort_key(attachment):
+        try:
+            return attachment_order.index(attachment["type"])
+        except ValueError:
+            return len(attachment_order)
+
+    top_html = ""
+    bottom_html = ""
+    categories = set()
+
+    attachments = sorted(
+        item.get("attachments", []), key=attachment_sort_key)
+
+    if not item["text"] and not attachments and "geo" in item:
+        LOG.debug("Skip check-in item from %s from %s.", user["name"], item["date"])
+        return
 
     if (
         "attachment" in item and
         item["text"] == item["attachment"][item["attachment"]["type"]].get("title")
     ):
-        main_text = ""
+        main_html = ""
     else:
-        main_text = item["text"]
-
-    attachments = item.get("attachments", [])
+        main_html = _parse_text(item["text"])
 
     photo_count = functools.reduce(
         lambda count, attachment:
@@ -311,21 +376,22 @@ def _post_item(users, user, item):
 
     for attachment in attachments:
         info = attachment[attachment["type"]]
+        add_category = True
 
         if attachment["type"] == "app":
-            top_text += _block(
+            top_html += _block(
                 _vk_link("app", info["app_id"],
                     _image(info["src_big" if big_image else "src"])))
 
         elif attachment["type"] == "graffiti":
-            top_text += _block(
+            top_html += _block(
                 _vk_link("graffiti", info["gid"],
                     _image(info["src_big" if big_image else "src"])))
 
 
         elif attachment["type"] == "link":
-            link_block = _em("Ссылка: " + _link(info["url"], info["title"]))
-            link_description = _parse_text(info["description"]) or info["title"]
+            link_block = _em("Ссылка: " + _link(info["url"], _escape(info["title"])))
+            link_description = _parse_text(info["description"]) or _escape(info["title"])
 
             if "image_src" in info:
                 if link_description:
@@ -335,45 +401,50 @@ def _post_item(users, user, item):
             elif link_description:
                 link_block += _block(link_description)
 
-            top_text += _block(link_block)
+            top_html += _block(link_block)
 
 
-        elif attachment["type"] in ("photo", "posted_photo"):
-            top_text += _photo(info, big_image)
+        elif attachment["type"] == "photo":
+            top_html += _photo(info, big_image)
+            add_category = False
+
+        elif attachment["type"] == "posted_photo":
+            top_html += _photo(info, big_image)
 
 
         elif attachment["type"] == "audio":
-            bottom_text += _block(_em(
+            bottom_html += _block(_em(
                 "Аудиозапись: " +
                 _vk_link("search",
                     "?" + urlencode({
                         "c[q]": info["performer"] + " - " + info["title"],
                         "c[section]": "audio"
                     }),
-                    "{} - {} ({})".format(info["performer"], info["title"],
-                        _duration(info["duration"])))))
+                    _escape("{} - {} ({})".format(info["performer"], info["title"],
+                        _duration(info["duration"]))))))
 
         elif attachment["type"] == "video":
-            top_text += _block(
+            top_html += _block(
                 _image(info["image"]) +
-                _block(_em("{} ({})".format(info["title"], _duration(info["duration"])))))
+                _block(_em(_escape("{} ({})".format(
+                    info["title"], _duration(info["duration"]))))))
 
 
         elif attachment["type"] == "doc":
-            bottom_text += _block(_em(
-                "Документ: {}".format(info["title"])))
+            top_html += _block(_em(_escape(
+                "Документ: {}".format(info["title"]))))
 
         elif attachment["type"] == "note":
-            bottom_text += _block(_em(
-                "Заметка: {}".format(info["title"])))
+            top_html += _block(_em(_escape(
+                "Заметка: {}".format(info["title"]))))
 
         elif attachment["type"] == "page":
-            bottom_text += _block(_em(
-                "Страница: {}".format(info["title"])))
+            top_html += _block(_em(_escape(
+                "Страница: {}".format(info["title"]))))
 
         elif attachment["type"] == "poll":
-            bottom_text += _block(_em(
-                "Опрос: {}".format(info["question"])))
+            top_html += _block(_em(_escape(
+                "Опрос: {}".format(info["question"]))))
 
 
         else:
@@ -381,24 +452,31 @@ def _post_item(users, user, item):
                 attachment, item["text"])
 
 
-    text = top_text + _parse_text(main_text) + bottom_text
+        if add_category:
+            categories.add(_CATEGORY_TYPE + attachment["type"])
+
+
+    html = top_html + main_html + bottom_html
 
     if "copy_owner_id" in item and "copy_post_id" in item:
-        text = _block(
+        html = _block(
             _em(_link(
                 _get_user_url(item["copy_owner_id"]),
-                users[item["copy_owner_id"]]["name"]
+                _escape(users[item["copy_owner_id"]]["name"])
             )) + " пишет:"
-        ) + text
+        ) + html
 
         if "copy_text" in item:
-            text = _quote_block(item["copy_text"], text)
+            html = _quote_block(item["copy_text"], html)
 
-    text = _image_block(_get_user_url(user["id"]), user["photo"], text)
+        categories.add(_CATEGORY_TYPE_REPOST)
+
+    html = _image_block(_get_user_url(user["id"]), user["photo"], html)
 
     return {
-        "title":  user["name"] + ": запись на стене",
-        "text":   text,
-        "url":    _VK_URL + "wall" + _vk_id(user["id"], item["post_id"]),
-        "unique": True,
+        "title":      _escape(user["name"] + ": запись на стене"),
+        "text":       html,
+        "url":        _VK_URL + "wall" + _vk_id(user["id"], item["post_id"]),
+        "unique":     True,
+        "categories": categories,
     }
