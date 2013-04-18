@@ -3,8 +3,7 @@
 import os
 import re
 
-import xml.sax.saxutils
-
+import tornado.escape
 import tornado.httputil
 import tornado.template
 
@@ -20,7 +19,7 @@ def generate(feed):
 
     rss =  TEMPLATE_LOADER.load("rss.rss").generate(
         feed=feed, date=tornado.httputil.format_timestamp,
-        escape=xml.sax.saxutils.escape)
+        escape=tornado.escape.xhtml_escape)
 
     if not config.DEBUG_MODE:
         rss = re.sub(br">\s+<", b"><", rss)
