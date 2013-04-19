@@ -42,7 +42,7 @@ def main():
 
     application = tornado.web.Application([
         ("/twitter.rss", social_rss.tw.RequestHandler),
-        ("/vk.rss", social_rss.vk.RequestHandler),
+        ("/vk.rss",      social_rss.vk.RequestHandler),
     ], debug=config.DEBUG_MODE)
 
     application.listen(args.port)
