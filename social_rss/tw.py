@@ -4,14 +4,28 @@ import json
 import logging
 import os
 import pprint
+import time
 
-# TODO: add to README
+from urllib.parse import urlencode
+
+# TODO: add the dependencies to README
+import dateutil.parser
 from twitter import OAuth, Twitter
 
 from social_rss import config
 from social_rss.request import BaseRequestHandler
 
 LOG = logging.getLogger(__name__)
+
+_TWITTER_URL = "https://twitter.com/"
+"""Twitter URL."""
+
+# TODO
+from social_rss.vk import _block
+from social_rss.vk import _escape
+from social_rss.vk import _image
+from social_rss.vk import _image_block
+from social_rss.vk import _link
 
 
 class RequestHandler(BaseRequestHandler):
@@ -44,19 +58,119 @@ class RequestHandler(BaseRequestHandler):
 
         if config.OFFLINE_DEBUG_MODE:
             with open(debug_path, "rb") as debug_response:
-                response = json.loads(debug_response.read().decode())
+                timeline = json.loads(debug_response.read().decode())
         else:
             api = Twitter(
                 auth=OAuth(
                     access_token_key, access_token_secret,
                     consumer_key, consumer_secret))
 
-            response = api.statuses.home_timeline()
+            # TODO
+            timeline = api.statuses.home_timeline(count=200)
 
             if config.WRITE_OFFLINE_DEBUG:
                 with open(debug_path, "wb") as debug_response:
-                    debug_response.write(json.dumps(response).encode())
+                    debug_response.write(json.dumps(timeline).encode())
 
-        pprint.pprint(response)
+        try:
+            feed = _get_feed(timeline)
+        except Exception:
+            LOG.exception("Failed to process Twitter timeline:%s", pprint.pformat(timeline))
+            raise
 
-        #self._write_rss(newsfeed)
+        self._write_rss(feed)
+
+
+def _get_feed(timeline):
+    """Generates a feed from timeline."""
+
+    items = []
+
+    for tweet in timeline:
+        item = { "id":  tweet["id_str"] }
+
+        try:
+            item["time"] = int(time.mktime(dateutil.parser.parse(tweet["created_at"]).timetuple()))
+
+            if "retweeted_status" in tweet:
+                real_tweet = tweet["retweeted_status"]
+                item["title"] = _escape("{} retweeted by {}".format(
+                    real_tweet["user"]["name"], tweet["user"]["name"]))
+            else:
+                real_tweet = tweet
+                item["title"] = _escape(tweet["user"]["name"])
+
+            item["url"] = _twitter_user_url(real_tweet["user"]["screen_name"]) + "/status/" + real_tweet["id_str"] # TODO
+            html = _parse_text(real_tweet["text"], real_tweet["entities"])
+
+            html = _image_block(real_tweet["user"]["screen_name"],
+                real_tweet["user"]["profile_image_url_https"], html)
+
+            item["text"] = html
+        except Exception:
+            LOG.exception("Failed to process the following tweet:\n%s",
+                pprint.pformat(tweet))
+
+            # TODO
+            item.setdefault("title", "Internal server error")
+            item.setdefault("text",  "Internal server error has occurred during processing this tweet")
+
+        items.append(item)
+
+
+    # TODO
+    return {
+        "title":       "Twitter",
+        "url":         _TWITTER_URL,
+        "image":       _TWITTER_URL + "images/resources/twitter-bird-light-bgs.png",
+        "description": "Twitter timeline",
+        "items":       items,
+    }
+
+
+def _parse_text(text, orig_entities):
+    sorted_entities = []
+
+    for entity_type, entities in orig_entities.items():
+        for entity in entities:
+            entity = entity.copy()
+            entity["type"] = entity_type
+            sorted_entities.append(entity)
+
+    sorted_entities.sort(key=lambda entity: entity["indices"][0], reverse=True)
+
+    html = ""
+    media = ""
+    cur_pos = len(text)
+
+    for entity in sorted_entities:
+        start, end = entity["indices"]
+
+        if end < cur_pos:
+            html = _escape(text[end:cur_pos]) + html
+
+        if entity["type"] == "user_mentions":
+            html = _link(_twitter_user_url(entity["screen_name"]), _escape(entity["name"])) + html
+        elif entity["type"] == "hashtags":
+            html = _link(_TWITTER_URL + "search?" + urlencode({ "q": entity["text"], "src": "hash" }), _escape(text[start:end])) + html
+        elif entity["type"] == "urls":
+            html = _link(entity["expanded_url"], _escape(entity["display_url"])) + html
+        elif entity["type"] == "media":
+            html = _link(entity["expanded_url"], _escape(entity["display_url"])) + html
+            media += _block(_link(entity["expanded_url"], _image(entity["media_url_https"])))
+        else:
+            LOG.error("Unknown tweet entity:\n%s", pprint.pformat(entity))
+            html = _escape(text[start:end]) + html
+
+        cur_pos = start
+
+    if cur_pos:
+        html = _escape(text[:cur_pos]) + html
+
+    return _block(html) + media
+
+
+def _twitter_user_url(screen_name):
+    """Returns URL of the specified user."""
+
+    return _TWITTER_URL + screen_name # TODO

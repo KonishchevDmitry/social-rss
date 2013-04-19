@@ -9,7 +9,10 @@
         {% for item in feed["items"] %}
             <item>
                 <title>{{ escape(item["title"]) }}</title>
-                <pubDate>{{ escape(date(item["time"])) }}</pubDate>
+
+                {% if "time" in item %}
+                    <pubDate>{{ escape(date(item["time"])) }}</pubDate>
+                {% end %}
 
                 {% if "url" in item %}
                     <link>{{ escape(item["url"]) }}</link>
