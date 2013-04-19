@@ -14,7 +14,7 @@ $ cd social-rss
 $ git submodule init
 $ git submodule update
 
-# Run the server (requires Python 3 and Tornado web framework)
+# Run the server (requires Python 3 + dateutil, tornado and twitter modules)
 $ ./social-rss 8888
 ```
 
@@ -34,3 +34,9 @@ $ ./social-rss 8888
 #### Getting RSS
 
 Just type in browser ``http://:YOUR_ACCESS_TOKEN@localhost:8888/vk.rss`` or pass this URL to your favourite RSS reader (it must support [HTTP Basic Access Authentication](http://en.wikipedia.org/wiki/Basic_access_authentication)).
+
+
+
+# Twitter RSS
+
+TODO

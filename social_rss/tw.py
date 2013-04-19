@@ -8,7 +8,6 @@ import time
 
 from urllib.parse import urlencode
 
-# TODO: add the dependencies to README
 import dateutil.parser
 from twitter import OAuth, Twitter
 
@@ -21,6 +20,7 @@ from social_rss.render import link as _link
 from social_rss.request import BaseRequestHandler
 
 LOG = logging.getLogger(__name__)
+
 
 _TWITTER_URL = "https://twitter.com/"
 """Twitter URL."""
@@ -92,7 +92,7 @@ def _get_feed(timeline):
 
             if "retweeted_status" in tweet:
                 real_tweet = tweet["retweeted_status"]
-                item["title"] = _escape("{} retweeted by {}".format(
+                item["title"] = _escape("{} (retweeted by {})".format(
                     real_tweet["user"]["name"], tweet["user"]["name"]))
             else:
                 real_tweet = tweet
