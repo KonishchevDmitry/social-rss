@@ -10,7 +10,13 @@ from urllib.parse import urlencode
 from pycl.core import Error
 
 from social_rss import vk_api
+from social_rss.render import block as _block
+from social_rss.render import em as _em
 from social_rss.render import escape as _escape
+from social_rss.render import image as _image
+from social_rss.render import image_block as _image_block
+from social_rss.render import link as _link
+from social_rss.render import quote_block as _quote_block
 from social_rss.request import BaseRequestHandler
 
 LOG = logging.getLogger(__name__)
@@ -184,18 +190,6 @@ def _vk_id(owner_id, object_id):
 
 
 # Rendering
-#
-# Note: Firefox ignores styles when displays RSS. So, it's better to limit use
-# of styles.
-
-
-def _block(html, style=None):
-    """"Renders a text block."""
-
-    if style is None:
-        return "<p>" + html + "</p>"
-    else:
-        return "<p style='{}'>{}</p>".format(style, html)
 
 
 def _duration(seconds):
@@ -211,48 +205,12 @@ def _duration(seconds):
         return "{:02d}:{:02d}".format(minutes, seconds)
 
 
-def _em(html):
-    """Renders an emphasized text."""
-
-    return "<b>" + html + "</b>"
-
-
-def _image(src):
-    """Renders an image."""
-
-    return "<img style='display: block; border-style: none;' src='{}' />".format(_escape(src))
-
-
-def _image_block(url, image_src, html):
-    """Renders an image block."""
-
-    return (
-        "<table cellpadding='0' cellspacing='0'>"
-            "<tr valign='top'>"
-                "<td>{image}</td><td width='10'></td><td>{html}</td>"
-            "</tr>"
-        "</table>"
-    ).format(image=_link(url, _image(image_src)), html=html)
-
-
-def _link(url, html):
-    """Renders a link."""
-
-    return "<a href='{url}'>{html}</a>".format(url=_escape(url), html=html)
-
-
 def _photo(info, big):
     """Renders a photo."""
 
     return _block(
         _vk_link("photo", _vk_id(info["owner_id"], info["pid"]),
             _image(info["src_big"] if big else info["src"])))
-
-
-def _quote_block(html, quoted_html):
-    """Renders a quote block."""
-
-    return _block(html) + _block(quoted_html, "margin-left: 1em;")
 
 
 def _vk_link(link_type, target, html):
