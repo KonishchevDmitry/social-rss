@@ -13,19 +13,17 @@ import dateutil.parser
 from twitter import OAuth, Twitter
 
 from social_rss import config
+from social_rss.render import block as _block
+from social_rss.render import escape as _escape
+from social_rss.render import image as _image
+from social_rss.render import image_block as _image_block
+from social_rss.render import link as _link
 from social_rss.request import BaseRequestHandler
 
 LOG = logging.getLogger(__name__)
 
 _TWITTER_URL = "https://twitter.com/"
 """Twitter URL."""
-
-# TODO
-from social_rss.vk import _block
-from social_rss.vk import _escape
-from social_rss.vk import _image
-from social_rss.vk import _image_block
-from social_rss.vk import _link
 
 
 class RequestHandler(BaseRequestHandler):
