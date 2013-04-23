@@ -9,6 +9,8 @@
         {% for item in feed["items"] %}
             <item>
                 <title>{{ escape(item["title"]) }}</title>
+                <description>{{ escape(item["text"]) }}</description>
+                <guid isPermaLink="false">{{ escape(item["id"]) }}</guid>
 
                 {% if "time" in item %}
                     <pubDate>{{ escape(date(item["time"])) }}</pubDate>
@@ -22,17 +24,9 @@
                     <author>{{ escape(item["author"]) }}</author>
                 {% end %}
 
-                {% if "url" in item and item.get("unique") %}
-                    <guid isPermaLink="true">{{ escape(item["url"]) }}</guid>
-                {% else %}
-                    <guid isPermaLink="false">{{ escape(item["id"]) }}</guid>
-                {% end %}
-
                 {% for category in item.get("categories", []) %}
                     <category>{{ escape(category) }}</category>
                 {% end %}
-
-                <description>{{ escape(item["text"]) }}</description>
             </item>
         {% end %}
     </channel>
