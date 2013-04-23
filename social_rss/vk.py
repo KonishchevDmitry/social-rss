@@ -100,11 +100,11 @@ def _get_newsfeed(access_token):
                 if api_item["type"] == "post":
                     item = _post_item(users, user, api_item)
                 elif api_item["type"] == "photo":
-                    item = _photo_item(users, user, api_item, "новые фотографии")
+                    item = _photo_item(users, user, api_item["photos"][1:], "новые фотографии")
                 elif api_item["type"] == "photo_tag":
-                    item = _photo_item(users, user, api_item, "новые отметки на фотографиях")
+                    item = _photo_item(users, user, api_item["photo_tags"][1:], "новые отметки на фотографиях")
                 elif api_item["type"] == "wall_photo":
-                    item = _photo_item(users, user, api_item, "новые фотографии на стене")
+                    item = _photo_item(users, user, api_item["photos"][1:], "новые фотографии на стене")
                 elif api_item["type"] == "friend":
                     item = _friend_item(users, user, api_item)
                 elif api_item["type"] == "note":
@@ -271,10 +271,8 @@ def _parse_text(text):
     return html.strip()
 
 
-def _photo_item(users, user, item, title):
+def _photo_item(users, user, photos, title):
     """Parses a photo item."""
-
-    photos = item["photos"][1:]
 
     return {
         "title":  _escape(user["name"] + ": " + title),
