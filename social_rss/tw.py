@@ -1,5 +1,7 @@
 """Twitter module."""
 
+# Note: Twitter HTML-escapes all the data it sends by API.
+
 import calendar
 import json
 import logging
@@ -13,7 +15,6 @@ from twitter import OAuth, Twitter
 
 from social_rss import config
 from social_rss.render import block as _block
-from social_rss.render import escape as _escape
 from social_rss.render import image as _image
 from social_rss.render import image_block as _image_block
 from social_rss.render import link as _link
@@ -90,11 +91,11 @@ def _get_feed(timeline):
 
             if tweet.get("retweeted_status") is None:
                 real_tweet = tweet
-                item["title"] = _escape(tweet["user"]["name"])
+                item["title"] = tweet["user"]["name"]
             else:
                 real_tweet = tweet["retweeted_status"]
-                item["title"] = _escape("{} (retweeted by {})".format(
-                    real_tweet["user"]["name"], tweet["user"]["name"]))
+                item["title"] = "{} (retweeted by {})".format(
+                    real_tweet["user"]["name"], tweet["user"]["name"])
 
             item["url"] = _twitter_user_url(real_tweet["user"]["screen_name"]) + "/status/" + real_tweet["id_str"]
 
@@ -141,25 +142,25 @@ def _parse_text(text, tweet_entities):
         start, end = entity["indices"]
 
         if end < pos:
-            html = _escape(text[end:pos]) + html
+            html = text[end:pos] + html
 
         if entity_type == "urls":
-            html = _link(entity["expanded_url"], _escape(entity["display_url"])) + html
+            html = _link(entity["expanded_url"], entity["display_url"]) + html
         elif entity_type == "user_mentions":
-            html = _link(_twitter_user_url(entity["screen_name"]), _escape(entity["name"])) + html
+            html = _link(_twitter_user_url(entity["screen_name"]), entity["name"]) + html
         elif entity_type == "hashtags":
-            html = _link(_TWITTER_URL + "search?" + urlencode({ "q": "#" + entity["text"] }), _escape(text[start:end])) + html
+            html = _link(_TWITTER_URL + "search?" + urlencode({ "q": "#" + entity["text"] }), text[start:end]) + html
         elif entity_type == "media":
-            html = _link(entity["expanded_url"], _escape(entity["display_url"])) + html
+            html = _link(entity["expanded_url"], entity["display_url"]) + html
             media_html += _block(_link(entity["expanded_url"], _image(entity["media_url_https"])))
         else:
             LOG.error("Unknown tweet entity:\n%s", pprint.pformat(entity))
-            html = _escape(text[start:end]) + html
+            html = text[start:end] + html
 
         pos = start
 
     if pos:
-        html = _escape(text[:pos]) + html
+        html = text[:pos] + html
 
     return _block(html) + media_html
 

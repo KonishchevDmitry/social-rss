@@ -1,5 +1,8 @@
 """VK module."""
 
+# Note: Actually, I don't know, what exactly should be escaped, so find out
+# this by trial and error.
+
 import functools
 import logging
 import pprint
