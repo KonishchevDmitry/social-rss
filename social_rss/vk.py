@@ -10,7 +10,7 @@ import re
 
 from urllib.parse import urlencode
 
-from pycl.core import Error
+from pycl.core import Error, LogicalError
 
 from social_rss import vk_api
 from social_rss.render import block as _block
@@ -102,12 +102,8 @@ def _get_newsfeed(access_token):
 
                 if api_item["type"] == "post":
                     item = _post_item(users, user, api_item)
-                elif api_item["type"] == "photo":
-                    item = _photo_item(users, user, api_item["photos"][1:], "новые фотографии")
-                elif api_item["type"] == "photo_tag":
-                    item = _photo_item(users, user, api_item["photo_tags"][1:], "новые отметки на фотографиях")
-                elif api_item["type"] == "wall_photo":
-                    item = _photo_item(users, user, api_item["photos"][1:], "новые фотографии на стене")
+                elif api_item["type"] in ("photo", "photo_tag", "wall_photo"):
+                    item = _photo_item(users, user, api_item)
                 elif api_item["type"] == "friend":
                     item = _friend_item(users, user, api_item)
                 elif api_item["type"] == "note":
@@ -185,10 +181,13 @@ def _get_user_url(user_id):
     return _VK_URL + _get_profile_name(user_id)
 
 
-def _vk_id(owner_id, object_id):
-    """Returns full ID of an object."""
+def _vk_id(obj_type, owner_id, object_id=None):
+    """Returns full ID of a VK object."""
 
-    return "{}_{}".format(owner_id, object_id)
+    if object_id is None:
+        return "{}{}".format(obj_type, owner_id)
+    else:
+        return "{}{}_{}".format(obj_type, owner_id, object_id)
 
 
 
@@ -212,14 +211,14 @@ def _photo(info, big):
     """Renders a photo."""
 
     return _block(
-        _vk_link("photo", _vk_id(info["owner_id"], info["pid"]),
+        _vk_link(_vk_id("photo", info["owner_id"], info["pid"]),
             _image(info["src_big"] if big else info["src"])))
 
 
-def _vk_link(link_type, target, html):
+def _vk_link(target, html):
     """Renders a VK link."""
 
-    return _link(_VK_URL + link_type + target, html)
+    return _link(_VK_URL + target, html)
 
 
 
@@ -252,11 +251,10 @@ def _note_item(users, user, item):
         "title":  _escape(user["name"] + ": заметка"),
         "text":   "".join(
             _block(_em("Заметка: " + _vk_link(
-                "note", _vk_id(note["owner_id"], note["nid"]), _escape(note["title"]))))
+                _vk_id("note", note["owner_id"], note["nid"]), _escape(note["title"]))))
             for note in notes
         ),
-        "url":    _VK_URL + "note" + _vk_id(notes[0]["owner_id"], notes[0]["nid"]),
-        "unique": True,
+        "url":    _VK_URL + _vk_id("note", notes[0]["owner_id"], notes[0]["nid"]),
     }
 
 
@@ -274,15 +272,42 @@ def _parse_text(text):
     return html.strip()
 
 
-def _photo_item(users, user, photos, title):
+def _photo_item(users, user, api_item):
     """Parses a photo item."""
 
-    return {
-        "title":  _escape(user["name"] + ": " + title),
-        "text":   "".join(_photo(photo, big=len(photos) == 1) for photo in photos),
-        "url":    _VK_URL + "photo" + _vk_id(photos[0]["owner_id"], photos[0]["pid"]),
-        "unique": True,
+    if api_item["type"] == "photo":
+        title = "новые фотографии"
+        photos = api_item["photos"]
+        get_photo_url = lambda photo: _VK_URL + "feed?" + urlencode({
+            "section": "photos",
+            "z": "photo{owner_id}_{photo_id}/feed1_{source_id}_{timestamp}".format(
+                owner_id=photo["owner_id"], photo_id=photo["pid"],
+                source_id=api_item["source_id"], timestamp=api_item["date"])})
+    elif api_item["type"] == "photo_tag":
+        title = "новые отметки на фотографиях"
+        photos = api_item["photo_tags"]
+        get_photo_url = lambda photo: _VK_URL + "feed?" + urlencode({
+            "z": "photo{owner_id}_{photo_id}/feed3_{source_id}_{timestamp}".format(
+                owner_id=photo["owner_id"], photo_id=photo["pid"],
+                source_id=api_item["source_id"], timestamp=api_item["date"])})
+    elif api_item["type"] == "wall_photo":
+        title = "новые фотографии на стене"
+        photos = api_item["photos"]
+        get_photo_url = lambda photo: _VK_URL + _vk_id("photo", photo["owner_id"], photo["pid"])
+    else:
+        raise LogicalError()
+
+    item = {
+        "title": _escape(user["name"] + ": " + title),
+        "text":  "",
     }
+
+    for photo in photos[1:]:
+        url = get_photo_url(photo)
+        item.setdefault("url", url)
+        item["text"] += _block(_link(url, _image(photo["src_big"])))
+
+    return item
 
 
 def _post_item(users, user, item):
@@ -339,12 +364,12 @@ def _post_item(users, user, item):
 
         if attachment["type"] == "app":
             top_html += _block(
-                _vk_link("app", info["app_id"],
+                _vk_link(_vk_id("app", info["app_id"]),
                     _image(info["src_big" if big_image else "src"])))
 
         elif attachment["type"] == "graffiti":
             top_html += _block(
-                _vk_link("graffiti", info["gid"],
+                _vk_link(_vk_id("graffiti", info["gid"]),
                     _image(info["src_big" if big_image else "src"])))
 
 
@@ -374,8 +399,8 @@ def _post_item(users, user, item):
         elif attachment["type"] == "audio":
             bottom_html += _block(_em(
                 "Аудиозапись: " +
-                _vk_link("search",
-                    "?" + urlencode({
+                _vk_link(
+                    "search?" + urlencode({
                         "c[q]": info["performer"] + " - " + info["title"],
                         "c[section]": "audio"
                     }),
@@ -435,7 +460,6 @@ def _post_item(users, user, item):
     return {
         "title":      _escape(user["name"] + ": запись на стене"),
         "text":       html,
-        "url":        _VK_URL + "wall" + _vk_id(user["id"], item["post_id"]),
-        "unique":     True,
+        "url":        _VK_URL + _vk_id("wall", user["id"], item["post_id"]),
         "categories": categories,
     }
