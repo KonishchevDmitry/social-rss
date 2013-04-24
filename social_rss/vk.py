@@ -90,7 +90,7 @@ class RequestHandler(BaseRequestHandler):
 def _get_newsfeed(access_token):
     """Returns VK news feed."""
 
-    response = vk_api.call(access_token, "newsfeed.get")
+    response = vk_api.call(access_token, "newsfeed.get", max_photos=10)
 
     try:
         items = []
@@ -306,6 +306,9 @@ def _photo_item(users, user, api_item):
         url = get_photo_url(photo)
         item.setdefault("url", url)
         item["text"] += _block(_link(url, _image(photo["src_big"])))
+
+    if photos[0] > len(photos) - 1:
+        item["text"] += _block("[показаны не все фотографии]")
 
     return item
 
