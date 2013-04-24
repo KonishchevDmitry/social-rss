@@ -229,11 +229,16 @@ def _friend_item(users, user, item):
     """Parses a new friend item."""
 
     html = ""
-    for friend in item["friends"][1:]:
+    friends = item["friends"][1:]
+
+    for friend in friends:
         friend = users[friend["uid"]]
         html += _image_block(
             _get_user_url(friend["id"]), friend["photo"],
             _link(_get_user_url(friend["id"]), _escape(friend["name"])))
+
+    if item["friends"][0] > len(friends):
+        html += _block("[показаны не все новые друзья]")
 
     return {
         "title": _escape(user["name"] + ": новые друзья"),
@@ -245,15 +250,19 @@ def _friend_item(users, user, item):
 def _note_item(users, user, item):
     """Parses a note item."""
 
+    html = ""
     notes = item["notes"][1:]
+
+    for note in notes:
+        html += _block(_em("Заметка: " + _vk_link(
+            _vk_id("note", note["owner_id"], note["nid"]), _escape(note["title"]))))
+
+    if item["notes"][0] > len(notes):
+        html += _block("[показаны не все заметки]")
 
     return {
         "title":  _escape(user["name"] + ": заметка"),
-        "text":   "".join(
-            _block(_em("Заметка: " + _vk_link(
-                _vk_id("note", note["owner_id"], note["nid"]), _escape(note["title"]))))
-            for note in notes
-        ),
+        "text":   html,
         "url":    _VK_URL + _vk_id("note", notes[0]["owner_id"], notes[0]["nid"]),
     }
 
