@@ -1,9 +1,11 @@
 """HTML rendering tools."""
 
+import io
+
 import tornado.escape
 
-# Note: Firefox ignores styles when displays RSS. So, it's better to limit use
-# of styles.
+# Note: Firefox ignores styles when displays RSS.
+# So, we limit use of styles and try to use HTML-only properties.
 
 
 def block(html, style=None):
@@ -34,13 +36,7 @@ def image(src):
 def image_block(url, image_src, html):
     """Renders an image block."""
 
-    return (
-        "<table cellpadding='0' cellspacing='0'>"
-            "<tr valign='top'>"
-                "<td>{image}</td><td width='10'></td><td>{html}</td>"
-            "</tr>"
-        "</table>"
-    ).format(image=link(url, image(image_src)), html=html)
+    return table([[ link(url, image(image_src)), html ]])
 
 
 def link(url, html):
@@ -53,3 +49,28 @@ def quote_block(html, quoted_html):
     """Renders a quote block."""
 
     return block(html) + block(quoted_html, "margin-left: 1em;")
+
+
+def table(rows, row_spacing=10, column_spacing=10):
+    """Renders a table."""
+
+    with io.StringIO() as html:
+        html.write("<table cellpadding='0' cellspacing='0'>")
+
+        for row_id, row in enumerate(rows):
+            if row_id:
+                html.write("<tr><td height='{}' colspan='{}'></td></tr>".format(
+                    row_spacing, len(row) + len(row) // 2))
+
+            html.write("<tr valign='top'>")
+
+            for column_id, column in enumerate(row):
+                if column_id:
+                    html.write("<td width='{}'></td>".format(column_spacing))
+                html.write("<td>" + column + "</td>")
+
+            html.write("</tr>")
+
+        html.write("</table>")
+
+        return html.getvalue()

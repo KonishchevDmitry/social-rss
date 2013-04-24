@@ -20,6 +20,7 @@ from social_rss.render import image as _image
 from social_rss.render import image_block as _image_block
 from social_rss.render import link as _link
 from social_rss.render import quote_block as _quote_block
+from social_rss.render import table as _table
 from social_rss.request import BaseRequestHandler
 
 LOG = logging.getLogger(__name__)
@@ -231,11 +232,15 @@ def _friend_item(users, user, item):
     html = ""
     friends = item["friends"][1:]
 
+    rows = []
     for friend in friends:
         friend = users[friend["uid"]]
-        html += _image_block(
-            _get_user_url(friend["id"]), friend["photo"],
-            _link(_get_user_url(friend["id"]), _escape(friend["name"])))
+        friend_url = _get_user_url(friend["id"])
+        rows.append([
+            _link(friend_url, _image(friend["photo"])),
+            _link(friend_url, _escape(friend["name"])),
+        ])
+    html += _table(rows, column_spacing=7)
 
     if item["friends"][0] > len(friends):
         html += _block("[показаны не все новые друзья]")
