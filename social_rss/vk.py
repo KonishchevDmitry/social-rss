@@ -129,8 +129,8 @@ def _get_newsfeed(access_token):
                     "text":  "При обработке новости произошла внутренняя ошибка сервера",
                 }
 
-            item["id"] = "id:{}:{}:{}".format(
-                api_item["source_id"], api_item["type"], api_item["date"])
+            item["id"] = "{}/{}/{}".format(
+                _get_profile_name(api_item["source_id"]), api_item["type"], api_item["date"])
             item["time"] = api_item["date"]
 
             items.append(item)
