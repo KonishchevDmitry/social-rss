@@ -424,16 +424,21 @@ def _post_item(users, user, item):
                     _escape("{} - {} ({})".format(info["performer"], info["title"],
                         _duration(info["duration"]))))))
 
+        elif attachment["type"] == "doc":
+            if "url" in info and "thumb" in info:
+                bottom_html += _block(_image_block(
+                    info["url"], info["thumb"],
+                    _link(info["url"], info["title"])))
+            else:
+                bottom_html += _block(_em(_escape(
+                    "Документ: {}".format(info["title"]))))
+
         elif attachment["type"] == "video":
             top_html += _block(
                 _image(info["image"]) +
                 _block(_em(_escape("{} ({})".format(
                     info["title"], _duration(info["duration"]))))))
 
-
-        elif attachment["type"] == "doc":
-            top_html += _block(_em(_escape(
-                "Документ: {}".format(info["title"]))))
 
         elif attachment["type"] == "note":
             top_html += _block(_em(_escape(
