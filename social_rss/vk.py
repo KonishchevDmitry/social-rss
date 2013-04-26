@@ -24,10 +24,6 @@ from social_rss.request import BaseRequestHandler
 LOG = logging.getLogger(__name__)
 
 
-_VK_URL = "https://vk.com/"
-"""VK URL."""
-
-
 _TEXT_URL_RE = re.compile(r"(^|\s|>)(https?://[^']+?)(\.?(?:<|\s|$))")
 """Matches a URL in a plain text."""
 
@@ -137,8 +133,8 @@ def _get_newsfeed(access_token):
 
     return {
         "title":       "ВКонтакте: Новости",
-        "url":         _VK_URL,
-        "image":       _VK_URL + "press/Simple.png",
+        "url":         _vk_url(),
+        "image":       _vk_url("press/Simple.png"),
         "description": "Новостная лента ВКонтакте",
         "items":       items,
     }
@@ -175,7 +171,7 @@ def _get_profile_name(user_id):
 def _get_user_url(user_id):
     """Returns profile URL of the specified user."""
 
-    return _VK_URL + _get_profile_name(user_id)
+    return _vk_url(_get_profile_name(user_id))
 
 
 def _vk_id(obj_type, owner_id, object_id=None):
@@ -185,6 +181,15 @@ def _vk_id(obj_type, owner_id, object_id=None):
         return "{}{}".format(obj_type, owner_id)
     else:
         return "{}{}_{}".format(obj_type, owner_id, object_id)
+
+
+def _vk_url(obj="", owner_id=None, object_id=None):
+    """Returns URL to the specified VK object."""
+
+    if owner_id is not None or object_id is not None:
+        obj = _vk_id(obj, owner_id, object_id)
+
+    return "https://vk.com/" + obj
 
 
 
@@ -215,7 +220,7 @@ def _photo(info, big):
 def _vk_link(target, html):
     """Renders a VK link."""
 
-    return _link(_VK_URL + target, html)
+    return _link(_vk_url(target), html)
 
 
 
@@ -244,7 +249,7 @@ def _friend_item(users, user, item):
     return {
         "title": user["name"] + ": новые друзья",
         "text":  html,
-        "url":   "{}friends?id={}&section=all".format(_VK_URL, user["id"]),
+        "url":   _vk_url("friends?id={}&section=all".format(user["id"])),
     }
 
 
@@ -264,7 +269,7 @@ def _note_item(users, user, item):
     return {
         "title":  user["name"] + ": заметка",
         "text":   html,
-        "url":    _VK_URL + _vk_id("note", notes[0]["owner_id"], notes[0]["nid"]),
+        "url":    _vk_url("note", notes[0]["owner_id"], notes[0]["nid"]),
     }
 
 
@@ -273,7 +278,7 @@ def _parse_text(html):
 
     html = _TEXT_URL_RE.sub(r"\1" + _link(r"\2", r"\2") + r"\3", html)
     html = _DOMAIN_ONLY_TEXT_URL_RE.sub(r"\1" + _link(r"http://\2", r"\2") + r"\3", html)
-    html = _USER_LINK_RE.sub(_em(_link(_VK_URL + r"\1", r"\2")), html)
+    html = _USER_LINK_RE.sub(_em(_link(_vk_url(r"\1"), r"\2")), html)
 
     return html.strip()
 
@@ -284,22 +289,22 @@ def _photo_item(users, user, api_item):
     if api_item["type"] == "photo":
         title = "новые фотографии"
         photos = api_item["photos"]
-        get_photo_url = lambda photo: _VK_URL + "feed?" + urlencode({
+        get_photo_url = lambda photo: _vk_url("feed?" + urlencode({
             "section": "photos",
             "z": "photo{owner_id}_{photo_id}/feed1_{source_id}_{timestamp}".format(
                 owner_id=photo["owner_id"], photo_id=photo["pid"],
-                source_id=api_item["source_id"], timestamp=api_item["date"])})
+                source_id=api_item["source_id"], timestamp=api_item["date"])}))
     elif api_item["type"] == "photo_tag":
         title = "новые отметки на фотографиях"
         photos = api_item["photo_tags"]
-        get_photo_url = lambda photo: _VK_URL + "feed?" + urlencode({
+        get_photo_url = lambda photo: _vk_url("feed?" + urlencode({
             "z": "photo{owner_id}_{photo_id}/feed3_{source_id}_{timestamp}".format(
                 owner_id=photo["owner_id"], photo_id=photo["pid"],
-                source_id=api_item["source_id"], timestamp=api_item["date"])})
+                source_id=api_item["source_id"], timestamp=api_item["date"])}))
     elif api_item["type"] == "wall_photo":
         title = "новые фотографии на стене"
         photos = api_item["photos"]
-        get_photo_url = lambda photo: _VK_URL + _vk_id("photo", photo["owner_id"], photo["pid"])
+        get_photo_url = lambda photo: _vk_url("photo", photo["owner_id"], photo["pid"])
     else:
         raise LogicalError()
 
@@ -401,7 +406,7 @@ def _post_item(users, user, item):
 
         elif attachment["type"] == "album":
             top_html += _image_block(
-                _VK_URL + _vk_id("album", info["owner_id"], info["aid"]), info["thumb"]["src"],
+                _vk_url("album", info["owner_id"], info["aid"]), info["thumb"]["src"],
                 "Альбом: {description} ({size} фото)".format(description=info["description"].strip(), size=info["size"]))
 
         elif attachment["type"] == "photo":
@@ -480,6 +485,6 @@ def _post_item(users, user, item):
     return {
         "title":      user["name"] + ": запись на стене",
         "text":       html,
-        "url":        _VK_URL + _vk_id("wall", user["id"], item["post_id"]),
+        "url":        _vk_url("wall", user["id"], item["post_id"]),
         "categories": categories,
     }
