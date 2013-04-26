@@ -327,6 +327,7 @@ def _post_item(users, user, item):
         "note",
         "page",
         "poll",
+        "album",
         "posted_photo",
         "photo",
         "graffiti",
@@ -345,6 +346,7 @@ def _post_item(users, user, item):
     top_html = ""
     bottom_html = ""
     categories = set()
+    unknown_attachments = set()
 
     attachments = sorted(
         item.get("attachments", []), key=attachment_sort_key)
@@ -397,6 +399,11 @@ def _post_item(users, user, item):
             top_html += _block(link_block)
 
 
+        elif attachment["type"] == "album":
+            top_html += _image_block(
+                _VK_URL + _vk_id("album", info["owner_id"], info["aid"]), info["thumb"]["src"],
+                "Альбом: {description} ({size} фото)".format(description=info["description"].strip(), size=info["size"]))
+
         elif attachment["type"] == "photo":
             top_html += _photo(info, big_image)
             add_category = False
@@ -441,12 +448,16 @@ def _post_item(users, user, item):
 
 
         else:
-            LOG.error("Got an unknown attachment type %s with text '%s'",
-                attachment, item["text"])
+            unknown_attachments.add(attachment["type"])
 
 
         if add_category:
             categories.add(_CATEGORY_TYPE + attachment["type"])
+
+
+    if unknown_attachments:
+        LOG.error("Got a post with unknown attachment type (%s):\n%s",
+            ", ".join(unknown_attachments), pprint.pformat(item))
 
 
     html = top_html + main_html + bottom_html
