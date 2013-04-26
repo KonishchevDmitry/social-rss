@@ -2,8 +2,6 @@
 
 import io
 
-import tornado.escape
-
 # Note: Firefox ignores styles when displays RSS.
 # So, we limit use of styles and try to use HTML-only properties.
 
@@ -23,14 +21,10 @@ def em(html):
     return "<b>" + html + "</b>"
 
 
-escape = tornado.escape.xhtml_escape
-"""Escapes a string so it is valid within HTML."""
-
-
 def image(src):
     """Renders an image."""
 
-    return "<img style='display: block; border-style: none;' src='{}' />".format(escape(src))
+    return "<img style='display: block; border-style: none;' src='{}' />".format(src)
 
 
 def image_block(url, image_src, html):
@@ -42,7 +36,7 @@ def image_block(url, image_src, html):
 def link(url, html):
     """Renders a link."""
 
-    return "<a href='{url}'>{html}</a>".format(url=escape(url), html=html)
+    return "<a href='{url}'>{html}</a>".format(url=url, html=html)
 
 
 def quote_block(html, quoted_html):
