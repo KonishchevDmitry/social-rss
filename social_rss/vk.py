@@ -379,7 +379,7 @@ def _post_item(users, user, item):
 
     for attachment in attachments:
         info = attachment[attachment["type"]]
-        add_category = True
+        attachment_category = attachment["type"]
 
         if attachment["type"] == "app":
             top_html += _block(
@@ -414,10 +414,14 @@ def _post_item(users, user, item):
 
         elif attachment["type"] == "photo":
             top_html += _photo(info, big_image)
-            add_category = False
+            attachment_category = "posted_photo"
 
         elif attachment["type"] == "posted_photo":
             top_html += _photo(info, big_image)
+
+        elif attachment["type"] == "photos_list":
+            # It seems like photos_list always duplicates photo attachments
+            attachment_category = "posted_photo"
 
 
         elif attachment["type"] == "audio":
@@ -459,8 +463,7 @@ def _post_item(users, user, item):
             unknown_attachments.add(attachment["type"])
 
 
-        if add_category:
-            categories.add(_CATEGORY_TYPE + attachment["type"])
+        categories.add(_CATEGORY_TYPE + attachment_category)
 
 
     if unknown_attachments:
