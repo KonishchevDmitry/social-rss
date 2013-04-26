@@ -98,8 +98,10 @@ def _get_newsfeed(access_token):
 
                 if api_item["type"] == "post":
                     item = _post_item(users, user, api_item)
-                elif api_item["type"] in ("photo", "photo_tag", "wall_photo"):
+                elif api_item["type"] in ("photo", "photo_tag"):
                     item = _photo_item(users, user, api_item)
+                elif api_item["type"] == "wall_photo":
+                    continue # It duplicates post items with any photo
                 elif api_item["type"] == "friend":
                     item = _friend_item(users, user, api_item)
                 elif api_item["type"] == "note":
@@ -304,10 +306,6 @@ def _photo_item(users, user, api_item):
             "z": "photo{owner_id}_{photo_id}/feed3_{source_id}_{timestamp}".format(
                 owner_id=photo["owner_id"], photo_id=photo["pid"],
                 source_id=api_item["source_id"], timestamp=api_item["date"])}))
-    elif api_item["type"] == "wall_photo":
-        title = "новые фотографии на стене"
-        photos = api_item["photos"]
-        get_photo_url = lambda photo: _vk_url("photo", photo["owner_id"], photo["pid"])
     else:
         raise LogicalError()
 
