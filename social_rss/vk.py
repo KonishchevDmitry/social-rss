@@ -114,6 +114,8 @@ def _get_newsfeed(access_token):
                     continue
 
                 item["author"] = user["name"]
+                item["text"] = _image_block(_get_user_url(user["id"]), user["photo"], item["text"])
+
                 item.setdefault("categories", set()).update([
                     _CATEGORY_TYPE + api_item["type"],
                     (_CATEGORY_SOURCE_GROUP if user["id"] < 0 else _CATEGORY_SOURCE_USER) + _get_profile_name(user["id"]),
@@ -483,8 +485,6 @@ def _post_item(users, user, item):
             html = _quote_block(item["copy_text"], html)
 
         categories.add(_CATEGORY_TYPE_REPOST)
-
-    html = _image_block(_get_user_url(user["id"]), user["photo"], html)
 
     return {
         "title":      user["name"] + ": запись на стене",
