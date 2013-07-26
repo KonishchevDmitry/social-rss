@@ -378,21 +378,27 @@ def _post_item(users, user, item):
     big_image = photo_count == 1
 
     for attachment in attachments:
-        info = attachment[attachment["type"]]
         attachment_category = attachment["type"]
 
+        # Notice: attachment object is not always stored in
+        # attachment[attachment["type"]] - sometimes it's stored under a
+        # different key, so we can't obtain it here for all attachment types.
+
         if attachment["type"] == "app":
+            info = attachment[attachment["type"]]
             top_html += _block(
                 _vk_link(_vk_id("app", info["app_id"]),
                     _image(info["src_big" if big_image else "src"])))
 
         elif attachment["type"] == "graffiti":
+            info = attachment[attachment["type"]]
             top_html += _block(
                 _vk_link(_vk_id("graffiti", info["gid"]),
                     _image(info["src_big" if big_image else "src"])))
 
 
         elif attachment["type"] == "link":
+            info = attachment[attachment["type"]]
             link_block = _em("Ссылка: " + _link(info["url"], info["title"]))
             link_description = _parse_text(info["description"]) or info["title"]
 
@@ -408,16 +414,17 @@ def _post_item(users, user, item):
 
 
         elif attachment["type"] == "album":
+            info = attachment[attachment["type"]]
             top_html += _image_block(
                 _vk_url("album", info["owner_id"], info["aid"]), info["thumb"]["src"],
                 "Альбом: {description} ({size} фото)".format(description=info["description"].strip(), size=info["size"]))
 
         elif attachment["type"] == "photo":
-            top_html += _photo(info, big_image)
+            top_html += _photo(attachment[attachment["type"]], big_image)
             attachment_category = "posted_photo"
 
         elif attachment["type"] == "posted_photo":
-            top_html += _photo(info, big_image)
+            top_html += _photo(attachment[attachment["type"]], big_image)
 
         elif attachment["type"] == "photos_list":
             # It seems like photos_list always duplicates photo attachments
@@ -425,6 +432,7 @@ def _post_item(users, user, item):
 
 
         elif attachment["type"] == "audio":
+            info = attachment[attachment["type"]]
             bottom_html += _block(_em(
                 "Аудиозапись: " +
                 _vk_link(
@@ -436,6 +444,7 @@ def _post_item(users, user, item):
                         _duration(info["duration"])))))
 
         elif attachment["type"] == "doc":
+            info = attachment[attachment["type"]]
             if "url" in info and "thumb" in info:
                 bottom_html += _block(_image_block(
                     info["url"], info["thumb"],
@@ -444,19 +453,23 @@ def _post_item(users, user, item):
                 bottom_html += _block(_em("Документ: {}".format(info["title"])))
 
         elif attachment["type"] == "video":
+            info = attachment[attachment["type"]]
             top_html += _block(
                 _image(info["image"]) +
                 _block(_em("{} ({})".format(info["title"], _duration(info["duration"])))))
 
 
         elif attachment["type"] == "note":
-            top_html += _block(_em("Заметка: {}".format(info["title"])))
+            top_html += _block(_em("Заметка: {}".format(
+                attachment[attachment["type"]]["title"])))
 
         elif attachment["type"] == "page":
-            top_html += _block(_em("Страница: {}".format(info["title"])))
+            top_html += _block(_em("Страница: {}".format(
+                attachment[attachment["type"]]["title"])))
 
         elif attachment["type"] == "poll":
-            top_html += _block(_em("Опрос: {}".format(info["question"])))
+            top_html += _block(_em("Опрос: {}".format(
+                attachment[attachment["type"]]["question"])))
 
 
         else:
