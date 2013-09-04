@@ -9,7 +9,7 @@ For now it supports [VK](https://vk.com/) and [Twitter](https://twitter.com/) so
 
 ```sh
 # Clone the source code
-$ git clone git@github.com:KonishchevDmitry/social-rss.git
+$ git clone https://github.com/KonishchevDmitry/social-rss.git
 $ cd social-rss
 $ git submodule init
 $ git submodule update
