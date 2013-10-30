@@ -7,14 +7,17 @@ For now it supports [VK](https://vk.com/) and [Twitter](https://twitter.com/) so
 
 ## How to use
 
+*Note: social-rss requires Python 3*
+
 ```sh
 # Clone the source code
 $ git clone git@github.com:KonishchevDmitry/social-rss.git
 $ cd social-rss
-$ git submodule init
-$ git submodule update
 
-# Run the server (requires Python 3 + dateutil, tornado and twitter modules)
+# Install all requirements
+$ sudo pip3 install -r requirements.txt
+
+# Run the server
 $ ./social-rss 8888
 ```
 
