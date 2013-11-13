@@ -11,7 +11,7 @@ import sys
 import tornado.ioloop
 import tornado.web
 
-import pycl.log
+import pcli.log
 
 import social_rss.tw
 import social_rss.vk
@@ -30,7 +30,7 @@ def main():
     config.OFFLINE_DEBUG_MODE = args.offline_debug
     config.WRITE_OFFLINE_DEBUG = args.write_offline_debug
 
-    pycl.log.setup(include_time=True, debug_mode=config.DEBUG_MODE)
+    pcli.log.setup(with_time=True, debug_mode=config.DEBUG_MODE)
 
     if config.WRITE_OFFLINE_DEBUG:
         try:
