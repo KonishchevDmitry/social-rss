@@ -9,9 +9,8 @@ import re
 
 from urllib.parse import urlencode
 
-from pycl.core import Error, LogicalError
-
 from social_rss import vk_api
+from social_rss.core import Error
 from social_rss.render import block as _block
 from social_rss.render import em as _em
 from social_rss.render import image as _image
@@ -309,7 +308,7 @@ def _photo_item(users, user, api_item):
                 owner_id=photo["owner_id"], photo_id=photo["pid"],
                 source_id=api_item["source_id"], timestamp=api_item["date"])}))
     else:
-        raise LogicalError()
+        raise Error("Logical error.")
 
     item = {
         "title": user["name"] + ": " + title,

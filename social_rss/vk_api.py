@@ -7,9 +7,8 @@ import os
 import urllib.request
 from urllib.parse import urlencode
 
-from pycl.core import Error
-
 from social_rss import config
+from social_rss.core import Error
 
 LOG = logging.getLogger(__name__)
 
