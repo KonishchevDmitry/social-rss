@@ -44,7 +44,7 @@ def main():
         ("/vk.rss",      social_rss.vk.RequestHandler),
     ], debug=config.DEBUG_MODE)
 
-    application.listen(args.port)
+    application.listen(args.port, address=args.address)
     tornado.ioloop.IOLoop.instance().start()
 
 
@@ -63,6 +63,8 @@ def parse_args():
 
     debug_group.add_argument("-w", "--write-offline-debug", action="store_true",
         help="dump network data for offline debug mode")
+
+    parser.add_argument("-a", "--address", default="", help="address to listen to on")
 
     parser.add_argument("port", type=int, help="port to listen to on")
 
