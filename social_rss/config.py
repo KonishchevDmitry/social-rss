@@ -11,3 +11,6 @@ WRITE_OFFLINE_DEBUG = False
 
 OFFLINE_DEBUG_PATH = "debug"
 """Path for storing offline debug data."""
+
+API_TIMEOUT = 10
+"""Timeout for API requests."""

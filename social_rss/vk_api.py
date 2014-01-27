@@ -45,7 +45,7 @@ def call(access_token, method, **kwargs):
         else:
             request = urllib.request.Request(url, headers={ "Accept-Language": "ru,en" })
 
-            with urllib.request.urlopen(request) as http_response:
+            with urllib.request.urlopen(request, timeout=config.API_TIMEOUT) as http_response:
                 content_type = http_response.getheader("content-type")
                 if content_type is None:
                     raise Error("The server returned a response without Content-Type header.")

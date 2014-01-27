@@ -63,7 +63,7 @@ class RequestHandler(BaseRequestHandler):
                     access_token_key, access_token_secret,
                     consumer_key, consumer_secret))
 
-            timeline = api.statuses.home_timeline()
+            timeline = api.statuses.home_timeline(_timeout=config.API_TIMEOUT)
 
             if config.WRITE_OFFLINE_DEBUG:
                 with open(debug_path, "wb") as debug_response:
