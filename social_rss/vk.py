@@ -236,6 +236,11 @@ def _vk_link(target, html):
 def _friend_item(users, user, item):
     """Parses a new friend item."""
 
+    # Sometimes API returns an empty new friend item:
+    # { "date": 1390235880, "source_id": 1334862, "type": "friend" }
+    if "friends" not in item:
+        return None
+
     html = ""
     friends = item["friends"][1:]
 
