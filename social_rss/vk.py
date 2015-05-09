@@ -87,9 +87,7 @@ def _get_newsfeed(access_token):
         items = []
         users = _get_users(response["profiles"], response["groups"])
 
-        # For now always log the complete newsfeed for easy debugging until
-        # the project become mature
-        LOG.info("Newsfeed: %s", pprint.pformat(response["items"]))
+        LOG.debug("Newsfeed: %s", pprint.pformat(response["items"]))
 
         for api_item in response["items"]:
             try:
