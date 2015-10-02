@@ -2,7 +2,6 @@
 
 import base64
 import binascii
-import http.client
 
 import tornado.web
 
@@ -40,7 +39,7 @@ class BaseRequestHandler(tornado.web.RequestHandler):
         """Requests authorization from client."""
 
         self.set_header("WWW-Authenticate", 'Basic realm="{}"'.format(error.replace('"', "'")))
-        self.set_status(http.client.UNAUTHORIZED)
+        self.set_status(401)
 
 
     def _write_rss(self, feed):
