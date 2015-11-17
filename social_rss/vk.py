@@ -97,8 +97,8 @@ def _get_newsfeed(access_token):
                     item = _post_item(users, user, api_item)
                 elif api_item["type"] in ("photo", "photo_tag"):
                     item = _photo_item(users, user, api_item)
-                elif api_item["type"] == "audio":
-                    continue # Don't generate items for every song added by someone
+                elif api_item["type"] == ("audio", "video"):
+                    continue # Don't generate items for every song or movie added by someone
                 elif api_item["type"] == "wall_photo":
                     continue # It duplicates post items with any photo
                 elif api_item["type"] == "friend":
