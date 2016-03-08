@@ -30,38 +30,24 @@ _TWITTER_URL = "https://twitter.com/"
 class RequestHandler(BaseRequestHandler):
     """Twitter RSS request handler."""
 
+    def initialize(self, credentials=None):
+        self.__credentials = credentials
+
     def get(self):
         """Handles the request."""
 
-        separator = "_"
-        credentials = self._get_credentials()
-
-        if (
-            credentials is None or
-            separator not in credentials[0] or separator not in credentials[1]
-        ):
-            self._unauthorized(
-                "Please enter your Twitter credentials: "
-                "user=$consumer_key{0}$consumer_secret, "
-                "password=$access_token_key{0}$access_token_secret.".format(separator))
+        if self.__credentials is None and not self.__get_credentials():
             return
 
-        consumer, access_token = credentials
-        consumer_key, consumer_secret = consumer.split(separator, 1)
-        access_token_key, access_token_secret = access_token.split(separator, 1)
-
         if config.OFFLINE_DEBUG_MODE or config.WRITE_OFFLINE_DEBUG:
-            debug_path = os.path.join(config.OFFLINE_DEBUG_PATH,
-                "twitter:" + ":".join(credentials))
+            debug_path = os.path.join(config.OFFLINE_DEBUG_PATH, "twitter")
 
         if config.OFFLINE_DEBUG_MODE:
             with open(debug_path, "rb") as debug_response:
                 timeline = json.loads(debug_response.read().decode())
         else:
-            api = Twitter(
-                auth=OAuth(
-                    access_token_key, access_token_secret,
-                    consumer_key, consumer_secret))
+            api = Twitter(auth=OAuth(self.__credentials["access_token_key"], self.__credentials["access_token_secret"],
+                                     self.__credentials["consumer_key"], self.__credentials["consumer_secret"]))
 
             timeline = api.statuses.home_timeline(_timeout=config.API_TIMEOUT)
 
@@ -76,6 +62,33 @@ class RequestHandler(BaseRequestHandler):
             raise
 
         self._write_rss(feed)
+
+    def __get_credentials(self):
+        separator = "_"
+        credentials = self._get_credentials()
+
+        if (
+            credentials is None or
+            separator not in credentials[0] or separator not in credentials[1]
+        ):
+            self._unauthorized(
+                "Please enter your Twitter credentials: "
+                "user=$consumer_key{0}$consumer_secret, "
+                "password=$access_token_key{0}$access_token_secret.".format(separator))
+            return False
+
+        consumer, access_token = credentials
+        consumer_key, consumer_secret = consumer.split(separator, 1)
+        access_token_key, access_token_secret = access_token.split(separator, 1)
+
+        self.__credentials = {
+            "consumer_key": consumer_key,
+            "consumer_secret": consumer_secret,
+            "access_token_key": access_token_key,
+            "access_token_secret": access_token_secret,
+        }
+
+        return True
 
 
 def _get_feed(timeline):
