@@ -54,16 +54,22 @@ _CATEGORY_SOURCE_GROUP = _CATEGORY_SOURCE + "group/"
 class RequestHandler(BaseRequestHandler):
     """VK RSS request handler."""
 
+    def initialize(self, access_token=None):
+        self.__access_token = access_token
+
     def get(self):
         """Handles the request."""
 
-        credentials = self._get_credentials()
-        if credentials is None:
-            self._unauthorized("Please enter VK access_token in password box.")
-            return
+        if self.__access_token is None:
+            credentials = self._get_credentials()
+            if credentials is None:
+                self._unauthorized("Please enter VK access_token in password box.")
+                return
+
+            self.__access_token = credentials[1]
 
         try:
-            newsfeed = _get_newsfeed(credentials[1])
+            newsfeed = _get_newsfeed(self.__access_token)
         except vk_api.ApiError as e:
             if e.code == 5:
                 self._unauthorized(str(e))
