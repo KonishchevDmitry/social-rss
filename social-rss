@@ -6,7 +6,6 @@ import argparse
 import errno
 import logging
 import os
-import sys
 
 import tornado.ioloop
 import tornado.web
@@ -39,9 +38,21 @@ def main():
             if e.errno != errno.EEXIST:
                 raise
 
+    twitter_credentials = {}
+    for cred_name in ("consumer_key", "consumer_secret", "access_token_key", "access_token_secret"):
+        env_name = "TWITTER_" + cred_name.upper()
+
+        try:
+            twitter_credentials[cred_name] = os.environ[env_name]
+        except KeyError:
+            pass
+
+    if len(twitter_credentials) not in (0, 4):
+        raise Exception("Invalid Twitter credentials environment variables.")
+
     application = tornado.web.Application([
-        ("/twitter.rss", social_rss.tw.RequestHandler),
-        ("/vk.rss",      social_rss.vk.RequestHandler),
+        ("/twitter.rss", social_rss.tw.RequestHandler, {"credentials": twitter_credentials}),
+        ("/vk.rss", social_rss.vk.RequestHandler, {"access_token": os.environ.get("VK_ACCESS_TOKEN")}),
     ], debug=config.DEBUG_MODE)
 
     application.listen(args.port, address=args.address)
