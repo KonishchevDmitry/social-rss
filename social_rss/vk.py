@@ -69,7 +69,7 @@ class RequestHandler(BaseRequestHandler):
             self.__access_token = credentials[1]
 
         try:
-            newsfeed = _get_newsfeed(self.__access_token)
+            newsfeed = _get_newsfeed(self.__access_token, self.get_argument("user_avatars", "1") != "0")
         except vk_api.ApiError as e:
             if e.code == 5:
                 self._unauthorized(str(e))
@@ -84,7 +84,7 @@ class RequestHandler(BaseRequestHandler):
 # Internal tools
 
 
-def _get_newsfeed(access_token):
+def _get_newsfeed(access_token, show_user_avatars):
     """Returns VK news feed."""
 
     response = vk_api.call(access_token, "newsfeed.get", max_photos=10)
@@ -119,7 +119,9 @@ def _get_newsfeed(access_token):
                     continue
 
                 item["author"] = user["name"]
-                item["text"] = _image_block(_get_user_url(user["id"]), user["photo"], item["text"])
+
+                if show_user_avatars:
+                    item["text"] = _image_block(_get_user_url(user["id"]), user["photo"], item["text"])
 
                 item.setdefault("categories", set()).update([
                     _CATEGORY_TYPE + api_item["type"],
