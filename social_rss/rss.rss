@@ -3,8 +3,13 @@
     <channel>
         <title>{{ escape(feed["title"]) }}</title>
         <link>{{ escape(feed["url"]) }}</link>
-        <image><url>{{ escape(feed["image"]) }}</url></image>
         <description>{{ escape(feed["description"]) }}</description>
+
+        <image>
+            <title>{{ escape(feed["title"]) }}</title>
+            <link>{{ escape(feed["url"]) }}</link>
+            <url>{{ escape(feed["image"]) }}</url>
+        </image>
 
         {% for item in feed["items"] %}
             <item>
