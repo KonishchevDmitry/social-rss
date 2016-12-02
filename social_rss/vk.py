@@ -49,6 +49,9 @@ _CATEGORY_SOURCE_USER = _CATEGORY_SOURCE + "user/"
 _CATEGORY_SOURCE_GROUP = _CATEGORY_SOURCE + "group/"
 """Group item."""
 
+_CATEGORY_ATTACHMENT = "attachment/"
+"""Attachment."""
+
 
 
 class RequestHandler(BaseRequestHandler):
@@ -123,10 +126,10 @@ def _get_newsfeed(access_token, show_user_avatars):
                 if show_user_avatars:
                     item["text"] = _image_block(_get_user_url(user["id"]), user["photo"], item["text"])
 
-                item.setdefault("categories", set()).update([
+                item["categories"] = sorted(item.get("categories", set()) | {
                     _CATEGORY_TYPE + api_item["type"],
                     (_CATEGORY_SOURCE_GROUP if user["id"] < 0 else _CATEGORY_SOURCE_USER) + _get_profile_name(user["id"]),
-                ])
+                })
             except Exception:
                 LOG.exception("Failed to process news feed item:\n%s",
                     pprint.pformat(api_item))
@@ -469,6 +472,7 @@ def _post_item(users, user, item):
             top_html += _block(
                 _image(info["image"]) +
                 _block(_em("{} ({})".format(info["title"], _duration(info["duration"])))))
+            categories.add(_CATEGORY_ATTACHMENT + "video/" + str(info["vid"]))
 
 
         elif attachment["type"] == "note":
