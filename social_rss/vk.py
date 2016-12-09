@@ -469,9 +469,11 @@ def _post_item(users, user, item):
 
         elif attachment["type"] == "video":
             info = attachment[attachment["type"]]
-            top_html += _block(
-                _image(info["image"]) +
-                _block(_em("{} ({})".format(info["title"], _duration(info["duration"])))))
+            video_block = _block(_em("{} ({})".format(info["title"], _duration(info["duration"]))))
+            # Restricted videos may appear without image
+            if "image" in info:
+                video_block = _block(_image(info["image"]) + video_block)
+            top_html += video_block
             categories.add(_CATEGORY_ATTACHMENT + "video/" + str(info["vid"]))
 
 
