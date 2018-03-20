@@ -30,6 +30,7 @@ def call(access_token, method, **kwargs):
 
     kwargs.setdefault("access_token", access_token)
     kwargs.setdefault("language", "0")
+    kwargs.setdefault("v", "5.0")
 
     url = _VK_API_URL + "method/{}?".format(method) + urlencode(kwargs)
     if config.OFFLINE_DEBUG_MODE or config.WRITE_OFFLINE_DEBUG:

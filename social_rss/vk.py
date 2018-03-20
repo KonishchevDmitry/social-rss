@@ -163,17 +163,17 @@ def _get_users(profiles, groups):
     users = {}
 
     for profile in profiles:
-        users[profile["uid"]] = {
-            "id":    profile["uid"],
+        users[profile["id"]] = {
+            "id":    profile["id"],
             "name":  profile["first_name"] + " " + profile["last_name"],
             "photo": profile["photo"],
         }
 
     for group in groups:
-        users[-group["gid"]] = {
-            "id":    -group["gid"],
+        users[-group["id"]] = {
+            "id":    -group["id"],
             "name":  group["name"],
-            "photo": group["photo"],
+            "photo": group["photo_50"],
         }
 
     return users
@@ -230,8 +230,8 @@ def _photo(info, big):
     """Renders a photo."""
 
     return _block(
-        _vk_link(_vk_id("photo", info["owner_id"], info["pid"]),
-            _image(info["src_big"] if big else info["src"])))
+        _vk_link(_vk_id("photo", info["owner_id"], info["id"]),
+            _image(info["photo_604"] if big else info["photo_130"])))
 
 
 def _vk_link(target, html):
@@ -253,19 +253,19 @@ def _friend_item(users, user, item):
         return None
 
     html = ""
-    friends = item["friends"][1:]
-
     rows = []
-    for friend in friends:
+
+    for friend in item["friends"]["items"]:
         friend = users[friend["uid"]]
         friend_url = _get_user_url(friend["id"])
         rows.append([
             _link(friend_url, _image(friend["photo"])),
             _link(friend_url, friend["name"]),
         ])
+
     html += _table(rows, column_spacing=7)
 
-    if item["friends"][0] > len(friends):
+    if item["friends"]["count"] > len(item["friends"]["items"]):
         html += _block("[показаны не все новые друзья]")
 
     return {
@@ -279,19 +279,19 @@ def _note_item(users, user, item):
     """Parses a note item."""
 
     html = ""
-    notes = item["notes"][1:]
+    notes = item["notes"]["items"]
 
     for note in notes:
         html += _block(_em("Заметка: " + _vk_link(
-            _vk_id("note", note["owner_id"], note["nid"]), note["title"])))
+            _vk_id("note", note["owner_id"], note["id"]), note["title"])))
 
-    if item["notes"][0] > len(notes):
+    if item["notes"]["count"] > len(notes):
         html += _block("[показаны не все заметки]")
 
     return {
         "title":  user["name"] + ": заметка",
         "text":   html,
-        "url":    _vk_url("note", notes[0]["owner_id"], notes[0]["nid"]),
+        "url":    _vk_url("note", notes[0]["owner_id"], notes[0]["id"]),
     }
 
 
@@ -314,14 +314,14 @@ def _photo_item(users, user, api_item):
         get_photo_url = lambda photo: _vk_url("feed?" + urlencode({
             "section": "photos",
             "z": "photo{owner_id}_{photo_id}/feed1_{source_id}_{timestamp}".format(
-                owner_id=photo["owner_id"], photo_id=photo["pid"],
+                owner_id=photo["owner_id"], photo_id=photo["id"],
                 source_id=api_item["source_id"], timestamp=api_item["date"])}))
     elif api_item["type"] == "photo_tag":
         title = "новые отметки на фотографиях"
         photos = api_item["photo_tags"]
         get_photo_url = lambda photo: _vk_url("feed?" + urlencode({
             "z": "photo{owner_id}_{photo_id}/feed3_{source_id}_{timestamp}".format(
-                owner_id=photo["owner_id"], photo_id=photo["pid"],
+                owner_id=photo["owner_id"], photo_id=photo["id"],
                 source_id=api_item["source_id"], timestamp=api_item["date"])}))
     else:
         raise Error("Logical error.")
@@ -331,12 +331,12 @@ def _photo_item(users, user, api_item):
         "text":  "",
     }
 
-    for photo in photos[1:]:
+    for photo in photos["items"]:
         url = get_photo_url(photo)
         item.setdefault("url", url)
-        item["text"] += _block(_link(url, _image(photo["src_big"])))
+        item["text"] += _block(_link(url, _image(photo["photo_604"])))
 
-    if photos[0] > len(photos) - 1:
+    if photos["count"] > len(photos["items"]):
         item["text"] += _block("[показаны не все фотографии]")
 
     return item
@@ -402,14 +402,14 @@ def _post_item(users, user, item):
         if attachment["type"] == "app":
             info = attachment[attachment["type"]]
             top_html += _block(
-                _vk_link(_vk_id("app", info["app_id"]),
-                    _image(info["src_big" if big_image else "src"])))
+                _vk_link(_vk_id("app", info["id"]),
+                    _image(info["photo_604" if big_image else "photo_130"])))
 
         elif attachment["type"] == "graffiti":
             info = attachment[attachment["type"]]
             top_html += _block(
-                _vk_link(_vk_id("graffiti", info["gid"]),
-                    _image(info["src_big" if big_image else "src"])))
+                _vk_link(_vk_id("graffiti", info["id"]),
+                    _image(info["photo_604" if big_image else "photo_130"])))
 
 
         elif attachment["type"] == "link":
@@ -417,11 +417,11 @@ def _post_item(users, user, item):
             link_block = _em("Ссылка: " + _link(info["url"], info["title"]))
             link_description = _parse_text(info["description"]) or info["title"]
 
-            if "image_src" in info:
+            if "photo" in info:
                 if link_description:
-                    link_block += _image_block(info["url"], info["image_src"], link_description)
+                    link_block += _image_block(info["url"], info["photo"]["photo_130"], link_description)
                 else:
-                    link_block += _block(_link(info["url"], _image(info["image_src"])))
+                    link_block += _block(_link(info["url"], _image(info["photo"]["photo_130"])))
             elif link_description:
                 link_block += _block(link_description)
 
@@ -431,7 +431,7 @@ def _post_item(users, user, item):
         elif attachment["type"] == "album":
             info = attachment[attachment["type"]]
             top_html += _image_block(
-                _vk_url("album", info["owner_id"], info["aid"]), info["thumb"]["src"],
+                _vk_url("album", info["owner_id"], info["id"]), info["thumb"]["photo_130"],
                 "Альбом: {description} ({size} фото)".format(description=info["description"].strip(), size=info["size"]))
 
         elif attachment["type"] == "photo":
@@ -452,29 +452,24 @@ def _post_item(users, user, item):
                 "Аудиозапись: " +
                 _vk_link(
                     "search?" + urlencode({
-                        "c[q]": info["performer"] + " - " + info["title"],
+                        "c[q]": info["artist"] + " - " + info["title"],
                         "c[section]": "audio"
                     }),
-                    "{} - {} ({})".format(info["performer"], info["title"],
+                    "{} - {} ({})".format(info["artist"], info["title"],
                         _duration(info["duration"])))))
 
         elif attachment["type"] == "doc":
             info = attachment[attachment["type"]]
-            if "url" in info and "thumb" in info:
-                bottom_html += _block(_image_block(
-                    info["url"], info["thumb"],
-                    _link(info["url"], info["title"])))
-            else:
-                bottom_html += _block(_em("Документ: {}".format(info["title"])))
+            bottom_html += _block(_em("Документ: {}".format(info["title"])))
 
         elif attachment["type"] == "video":
             info = attachment[attachment["type"]]
             video_block = _block(_em("{} ({})".format(info["title"], _duration(info["duration"]))))
             # Restricted videos may appear without image
-            if "image" in info:
-                video_block = _block(_image(info["image"]) + video_block)
+            if "photo_320" in info:
+                video_block = _block(_image(info["photo_320"]) + video_block)
             top_html += video_block
-            categories.add(_CATEGORY_ATTACHMENT + "video/" + str(info["vid"]))
+            categories.add(_CATEGORY_ATTACHMENT + "video/" + str(info["id"]))
 
 
         elif attachment["type"] == "note":
