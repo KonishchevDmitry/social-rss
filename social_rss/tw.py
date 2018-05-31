@@ -49,7 +49,7 @@ class RequestHandler(BaseRequestHandler):
             api = Twitter(auth=OAuth(self.__credentials["access_token_key"], self.__credentials["access_token_secret"],
                                      self.__credentials["consumer_key"], self.__credentials["consumer_secret"]))
 
-            timeline = api.statuses.home_timeline(_timeout=config.API_TIMEOUT)
+            timeline = api.statuses.home_timeline(tweet_mode="extended", _timeout=config.API_TIMEOUT)
 
             if config.WRITE_OFFLINE_DEBUG:
                 with open(debug_path, "wb") as debug_response:
@@ -115,7 +115,7 @@ def _get_feed(timeline):
             item["text"] = _image_block(
                 _twitter_user_url(real_tweet["user"]["screen_name"]),
                 real_tweet["user"]["profile_image_url_https"],
-                _parse_text(real_tweet["text"], real_tweet["entities"]))
+                _parse_text(real_tweet["full_text"], real_tweet["entities"]))
         except Exception:
             LOG.exception("Failed to process the following tweet:\n%s",
                 pprint.pformat(tweet))
@@ -162,7 +162,7 @@ def _parse_text(text, tweet_entities):
         elif entity_type == "user_mentions":
             html = _link(_twitter_user_url(entity["screen_name"]), entity["name"]) + html
         elif entity_type == "hashtags":
-            html = _link(_TWITTER_URL + "search?" + urlencode({ "q": "#" + entity["text"] }), text[start:end]) + html
+            html = _link(_TWITTER_URL + "search?" + urlencode({ "q": "#" + entity["full_text"] }), text[start:end]) + html
         elif entity_type == "media":
             html = _link(entity["expanded_url"], entity["display_url"]) + html
             media_html += _block(_link(entity["expanded_url"], _image(entity["media_url_https"])))
