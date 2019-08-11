@@ -162,7 +162,7 @@ def _parse_text(text, tweet_entities):
         elif entity_type == "user_mentions":
             html = _link(_twitter_user_url(entity["screen_name"]), entity["name"]) + html
         elif entity_type == "hashtags":
-            html = _link(_TWITTER_URL + "search?" + urlencode({ "q": "#" + entity["full_text"] }), text[start:end]) + html
+            html = _link(_TWITTER_URL + "search?" + urlencode({ "q": "#" + entity["text"] }), text[start:end]) + html
         elif entity_type == "media":
             html = _link(entity["expanded_url"], entity["display_url"]) + html
             media_html += _block(_link(entity["expanded_url"], _image(entity["media_url_https"])))
